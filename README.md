@@ -2,6 +2,8 @@
 
 OpenHarmony 的 GCC 交叉编译工具链构建脚本，基于 Alpine Linux 的 GCC APKBUILD 改编。
 
+> 进展：施工中
+
 ## 项目简介
 
 本项目提供了一个完整的构建脚本，用于为 OpenHarmony (OHOS) 操作系统编译 GCC 交叉编译工具链。支持多种目标架构，包括 AArch64、ARM、x86/x86_64、RISC-V 和 MIPS。
