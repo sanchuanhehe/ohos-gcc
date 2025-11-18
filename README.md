@@ -85,7 +85,6 @@ aarch64-linux-ohos-gcc -o hello hello.c
 
 - [**BUILD_OHOS.md**](BUILD_OHOS.md) - 完整的构建指南和文档
 - [**CONTRIBUTING.md**](CONTRIBUTING.md) - 贡献指南
-- [**patches/APKBUILD**](patches/APKBUILD) - Alpine Linux 原始 APKBUILD 参考
 
 ## 项目结构
 
