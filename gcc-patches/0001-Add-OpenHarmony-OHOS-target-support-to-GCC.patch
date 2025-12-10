@@ -119,10 +119,10 @@ index 38f3d037a..0a04e2db3 100755
  	uclinux-uclibc* )
  		;;
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index eeecbd846..f32c6a24b 100644
+index 087aaa7be..ae5524c36 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
-@@ -936,6 +936,9 @@ case ${target} in
+@@ -920,6 +920,9 @@ case ${target} in
      *-*-*musl*)
        tm_defines="$tm_defines DEFAULT_LIBC=LIBC_MUSL"
        ;;
@@ -132,7 +132,7 @@ index eeecbd846..f32c6a24b 100644
      *)
        tm_defines="$tm_defines DEFAULT_LIBC=LIBC_GLIBC"
        ;;
-@@ -1255,6 +1258,84 @@ aarch64*-*-netbsd*)
+@@ -1236,6 +1239,84 @@ aarch64*-*-netbsd*)
  	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-netbsd"
  	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
  	;;
@@ -217,7 +217,7 @@ index eeecbd846..f32c6a24b 100644
  aarch64*-*-linux*)
  	tm_file="${tm_file} elfos.h gnu-user.h linux.h glibc-stdint.h"
  	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-linux.h"
-@@ -3695,6 +3776,9 @@ case ${target} in
+@@ -3660,6 +3741,9 @@ case ${target} in
  *-linux-musl*)
  	tmake_file="${tmake_file} t-musl"
  	;;
@@ -227,7 +227,7 @@ index eeecbd846..f32c6a24b 100644
  *-linux-uclibc*)
  	tmake_file="${tmake_file} t-uclibc"
  	;;
-@@ -3703,7 +3787,7 @@ esac
+@@ -3668,7 +3752,7 @@ esac
  # Assume the existence of indirect function support and allow the use of the
  # resolver attribute.
  case ${target} in
@@ -236,7 +236,7 @@ index eeecbd846..f32c6a24b 100644
          ;;
  *-*-kfreebsd*-gnu | *-*-kopensolaris*-gnu)
          ;;
-@@ -5165,6 +5249,7 @@ case "${target}" in
+@@ -5108,6 +5192,7 @@ case "${target}" in
  		case ${target} in
  		  *-linux-gnu*) triplet_os="linux-gnu";;
  		  *-linux-musl*) triplet_os="linux-musl";;
@@ -246,10 +246,10 @@ index eeecbd846..f32c6a24b 100644
  			  echo "Unsupported target ${target}." 1>&2
 diff --git a/gcc/config/aarch64/aarch64-ohos.h b/gcc/config/aarch64/aarch64-ohos.h
 new file mode 100644
-index 000000000..38dad2a34
+index 000000000..5b3425fc1
 --- /dev/null
 +++ b/gcc/config/aarch64/aarch64-ohos.h
-@@ -0,0 +1,141 @@
+@@ -0,0 +1,137 @@
 +/* Definitions for AArch64 running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -307,20 +307,16 @@ index 000000000..38dad2a34
 +/* OpenHarmony library paths for AArch64 */
 +#define OHOS_ARCH_LIB_DIR "aarch64-linux-ohos"
 +
-+/* Define architecture-specific include directories for OHOS */
-+#undef INCLUDE_DEFAULTS
-+#define INCLUDE_DEFAULTS				\
-+  {							\
-+    /* Architecture-specific system headers first */	\
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 2 }, \
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 0 }, \
-+    /* Standard system headers */			\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 2 },	\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 0 },	\
-+    /* GCC include directory */				\
-+    { GCC_INCLUDE_DIR, "GCC", 0, 1, 0, 0 },		\
-+    { 0, 0, 0, 0, 0, 0 }				\
-+  }
++/* Inject architecture-specific include directories via the CPP spec. */
++#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
++#ifndef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC ""
++#endif
++#define OHOS_PREV_SUBTARGET_CPP_SPEC SUBTARGET_CPP_SPEC
++#undef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC OHOS_PREV_SUBTARGET_CPP_SPEC OHOS_MULTIARCH_CPP_SPEC
++#undef OHOS_PREV_SUBTARGET_CPP_SPEC
++#undef OHOS_MULTIARCH_CPP_SPEC
 +
 +/* Enhanced library search paths for OpenHarmony */
 +#undef STANDARD_STARTFILE_PREFIX_1
@@ -427,10 +423,10 @@ index 000000000..2ec312e61
 +MULTILIB_OSDIRNAMES += mabi.ilp32=../libilp32$(call if_multiarch,:aarch64$(AARCH_BE)-linux-ohos_ilp32)
 diff --git a/gcc/config/arm/arm-ohos.h b/gcc/config/arm/arm-ohos.h
 new file mode 100644
-index 000000000..7e09d08ef
+index 000000000..b2785b4ed
 --- /dev/null
 +++ b/gcc/config/arm/arm-ohos.h
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,127 @@
 +/* Definitions for ARM running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -485,20 +481,16 @@ index 000000000..7e09d08ef
 +# define OHOS_ARCH_LIB_DIR "arm-linux-ohos"
 +#endif
 +
-+/* Define architecture-specific include directories for OHOS */
-+#undef INCLUDE_DEFAULTS
-+#define INCLUDE_DEFAULTS				\
-+  {							\
-+    /* Architecture-specific system headers first */	\
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 2 }, \
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 0 }, \
-+    /* Standard system headers */			\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 2 },	\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 0 },	\
-+    /* GCC include directory */				\
-+    { GCC_INCLUDE_DIR, "GCC", 0, 1, 0, 0 },		\
-+    { 0, 0, 0, 0, 0, 0 }				\
-+  }
++/* Inject architecture-specific include directories via the CPP spec. */
++#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
++#ifndef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC ""
++#endif
++#define OHOS_PREV_SUBTARGET_CPP_SPEC SUBTARGET_CPP_SPEC
++#undef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC OHOS_PREV_SUBTARGET_CPP_SPEC OHOS_MULTIARCH_CPP_SPEC
++#undef OHOS_PREV_SUBTARGET_CPP_SPEC
++#undef OHOS_MULTIARCH_CPP_SPEC
 +
 +/* Enhanced library search paths for OpenHarmony */
 +#undef STANDARD_STARTFILE_PREFIX_1
@@ -598,10 +590,10 @@ index 000000000..f0a37350e
 +MULTILIB_OSDIRNAMES += mfloat-abi.hard=../lib/arm$(ARM_BE)-linux-ohoshf$(call if_multiarch,:arm$(ARM_BE)-linux-ohoshf)
 diff --git a/gcc/config/i386/i386-ohos.h b/gcc/config/i386/i386-ohos.h
 new file mode 100644
-index 000000000..2fbfa9332
+index 000000000..244fb959c
 --- /dev/null
 +++ b/gcc/config/i386/i386-ohos.h
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,123 @@
 +/* Definitions for x86_64 running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -656,23 +648,21 @@ index 000000000..2fbfa9332
 +#elif TARGET_64BIT
 +# define OHOS_ARCH_LIB_DIR "x86_64-linux-ohos"
 +#else
++# define OHOS_ARCH_LIB_DIR "x86_64-linux-ohos"
++#else
 +# define OHOS_ARCH_LIB_DIR "i386-linux-ohos"
-+#endif/* Define architecture-specific include directories for OHOS */
-+#undef INCLUDE_DEFAULTS
-+#define INCLUDE_DEFAULTS				\
-+  {							\
-+    /* Architecture-specific system headers first */	\
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 2 }, \
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 0 }, \
-+    /* Standard system headers */			\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 2 },	\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 0 },	\
-+    /* GCC include directory */				\
-+    { GCC_INCLUDE_DIR, "GCC", 0, 1, 0, 0 },		\
-+    { 0, 0, 0, 0, 0, 0 }				\
-+  }
++#endif
 +
-+/* Enhanced library search paths for OpenHarmony */
++/* Inject architecture-specific include directories via the CPP spec. */
++#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
++#ifndef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC ""
++#endif
++#define OHOS_PREV_SUBTARGET_CPP_SPEC SUBTARGET_CPP_SPEC
++#undef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC OHOS_PREV_SUBTARGET_CPP_SPEC OHOS_MULTIARCH_CPP_SPEC
++#undef OHOS_PREV_SUBTARGET_CPP_SPEC
++#undef OHOS_MULTIARCH_CPP_SPEC
 +#undef STANDARD_STARTFILE_PREFIX_1
 +#define STANDARD_STARTFILE_PREFIX_1 "/usr/lib/"
 +
@@ -729,10 +719,10 @@ index 000000000..2fbfa9332
 +#endif /* GCC_I386_OHOS_H */
 diff --git a/gcc/config/mips/mips-ohos.h b/gcc/config/mips/mips-ohos.h
 new file mode 100644
-index 000000000..2d74ccc31
+index 000000000..e7403e962
 --- /dev/null
 +++ b/gcc/config/mips/mips-ohos.h
-@@ -0,0 +1,140 @@
+@@ -0,0 +1,136 @@
 +/* Definitions for MIPS running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -805,20 +795,16 @@ index 000000000..2d74ccc31
 +# endif
 +#endif
 +
-+/* Define architecture-specific include directories for OHOS */
-+#undef INCLUDE_DEFAULTS
-+#define INCLUDE_DEFAULTS				\
-+  {							\
-+    /* Architecture-specific system headers first */	\
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 2 }, \
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 0 }, \
-+    /* Standard system headers */			\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 2 },	\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 0 },	\
-+    /* GCC include directory */				\
-+    { GCC_INCLUDE_DIR, "GCC", 0, 1, 0, 0 },		\
-+    { 0, 0, 0, 0, 0, 0 }				\
-+  }
++/* Inject architecture-specific include directories via the CPP spec. */
++#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
++#ifndef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC ""
++#endif
++#define OHOS_PREV_SUBTARGET_CPP_SPEC SUBTARGET_CPP_SPEC
++#undef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC OHOS_PREV_SUBTARGET_CPP_SPEC OHOS_MULTIARCH_CPP_SPEC
++#undef OHOS_PREV_SUBTARGET_CPP_SPEC
++#undef OHOS_MULTIARCH_CPP_SPEC
 +
 +/* Enhanced library search paths for OpenHarmony */
 +#undef STANDARD_STARTFILE_PREFIX_1
@@ -875,10 +861,10 @@ index 000000000..2d74ccc31
 +#endif /* GCC_MIPS_OHOS_H */
 diff --git a/gcc/config/ohos-paths.h b/gcc/config/ohos-paths.h
 new file mode 100644
-index 000000000..6474105da
+index 000000000..a0a273dac
 --- /dev/null
 +++ b/gcc/config/ohos-paths.h
-@@ -0,0 +1,74 @@
+@@ -0,0 +1,78 @@
 +/* OpenHarmony sysroot and toolchain utilities
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -923,6 +909,10 @@ index 000000000..6474105da
 +
 +/* CRT file location patterns */
 +#define OHOS_CRT_FILE_PATTERN "/usr/lib/%s/%s"
++
++/* Helper fragment for feeding multi-arch include dirs into SUBTARGET_CPP_SPEC. */
++#define OHOS_MULTIARCH_INCLUDE_SPEC(archdir) \
++  " %{!nostdinc:%{!fself-test=*: -idirafter %R/usr/include/" archdir "}}"
 +
 +/* Standard OpenHarmony target triplets */
 +#define OHOS_AARCH64_TRIPLET "aarch64-linux-ohos"
@@ -1113,10 +1103,10 @@ index 000000000..e44fe51b1
 +  "This combination is fully supported and widely used in production."
 diff --git a/gcc/config/riscv/riscv-ohos.h b/gcc/config/riscv/riscv-ohos.h
 new file mode 100644
-index 000000000..668d3dce9
+index 000000000..9a78d0fee
 --- /dev/null
 +++ b/gcc/config/riscv/riscv-ohos.h
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,127 @@
 +/* Definitions for RISC-V running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -1173,20 +1163,16 @@ index 000000000..668d3dce9
 +# define OHOS_ARCH_LIB_DIR "riscv32-linux-ohos"
 +#endif
 +
-+/* Define architecture-specific include directories for OHOS */
-+#undef INCLUDE_DEFAULTS
-+#define INCLUDE_DEFAULTS				\
-+  {							\
-+    /* Architecture-specific system headers first */	\
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 2 }, \
-+    { NATIVE_SYSTEM_HEADER_DIR "/" OHOS_ARCH_LIB_DIR, 0, 0, 0, 1, 0 }, \
-+    /* Standard system headers */			\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 2 },	\
-+    { NATIVE_SYSTEM_HEADER_DIR, 0, 0, 0, 1, 0 },	\
-+    /* GCC include directory */				\
-+    { GCC_INCLUDE_DIR, "GCC", 0, 1, 0, 0 },		\
-+    { 0, 0, 0, 0, 0, 0 }				\
-+  }
++/* Inject architecture-specific include directories via the CPP spec. */
++#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
++#ifndef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC ""
++#endif
++#define OHOS_PREV_SUBTARGET_CPP_SPEC SUBTARGET_CPP_SPEC
++#undef SUBTARGET_CPP_SPEC
++#define SUBTARGET_CPP_SPEC OHOS_PREV_SUBTARGET_CPP_SPEC OHOS_MULTIARCH_CPP_SPEC
++#undef OHOS_PREV_SUBTARGET_CPP_SPEC
++#undef OHOS_MULTIARCH_CPP_SPEC
 +
 +/* Enhanced library search paths for OpenHarmony */
 +#undef STANDARD_STARTFILE_PREFIX_1
@@ -1290,10 +1276,10 @@ index cfc9ddaa3..8d2d6d73d 100644
  # include <stddef.h>
  #endif
 diff --git a/libgcc/config.host b/libgcc/config.host
-index 82ea1772f..054fc14d9 100644
+index 6a88ee5a2..ec8f6954d 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
-@@ -422,6 +422,15 @@ aarch64*-*-fuchsia*)
+@@ -435,6 +435,15 @@ aarch64*-*-fuchsia*)
  	tmake_file="${tmake_file} ${cpu_type}/t-softfp t-softfp"
  	tmake_file="${tmake_file} t-dfprules"
  	;;
@@ -1332,7 +1318,7 @@ index eeb84f32d..1b5cd8bc5 100644
  #else
  # define GTHR_ACTIVE_PROXY	__gthrw_(pthread_cancel)
 diff --git a/libstdc++-v3/configure.host b/libstdc++-v3/configure.host
-index ff9721616..cc76aca79 100644
+index 253e5a9ad..b2af509fb 100644
 --- a/libstdc++-v3/configure.host
 +++ b/libstdc++-v3/configure.host
 @@ -268,6 +268,9 @@ case "${host_os}" in
@@ -1345,6 +1331,3 @@ index ff9721616..cc76aca79 100644
    gnu* | linux* | kfreebsd*-gnu | uclinux*)
      if [ "$uclibc" = "yes" ]; then
        os_include_dir="os/uclibc"
--- 
-2.34.1
-
