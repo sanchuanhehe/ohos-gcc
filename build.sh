@@ -174,13 +174,13 @@ prepare() {
     cd "${SOURCE_DIR}"
     
     # Apply OHOS patch first
-    if [ -f "${SCRIPT_DIR}/patches/0001-Add-OpenHarmony-OHOS-target-support-to-GCC.patch" ]; then
-        patch -p1 -N -i "${SCRIPT_DIR}/patches/0001-Add-OpenHarmony-OHOS-target-support-to-GCC.patch" || \
+    if [ -f "${SCRIPT_DIR}/gcc-patches/0001-Add-OpenHarmony-OHOS-target-support-to-GCC.patch" ]; then
+        patch -p1 -N -i "${SCRIPT_DIR}/gcc-patches/0001-Add-OpenHarmony-OHOS-target-support-to-GCC.patch" || \
             msg "OHOS patch already applied or failed"
     fi
     
     # Apply other patches
-    for patch in "${SCRIPT_DIR}"/patches/*.patch; do
+    for patch in "${SCRIPT_DIR}"/gcc-patches/*.patch; do
         [ -f "${patch}" ] || continue
         # Skip OHOS patch as it's already applied
         [[ "${patch}" =~ "0001-Add-OpenHarmony-OHOS" ]] && continue
