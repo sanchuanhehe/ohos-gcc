@@ -249,7 +249,7 @@ new file mode 100644
 index 000000000..5b3425fc1
 --- /dev/null
 +++ b/gcc/config/aarch64/aarch64-ohos.h
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,140 @@
 +/* Definitions for AArch64 running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -271,6 +271,9 @@ index 000000000..5b3425fc1
 +
 +#ifndef GCC_AARCH64_OHOS_H
 +#define GCC_AARCH64_OHOS_H
++
++/* Musl libc in OpenHarmony provides SSP support (stack_chk_fail) */
++#define TARGET_LIBC_PROVIDES_SSP 1
 +
 +/* Define architecture-specific dynamic linker for AArch64 */
 +#define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-aarch64.so.1"
@@ -1304,7 +1307,7 @@ index eeb84f32d..1b5cd8bc5 100644
  __gthrw(pthread_self)
  __gthrw(pthread_detach)
 -#ifndef __BIONIC__
-+#if !defined(__BIONIC__) && !defined(__OHOS__)
++#if !defined(__BIONIC__) && !defined(__ohos__)
  __gthrw(pthread_cancel)
  #endif
  __gthrw(sched_yield)

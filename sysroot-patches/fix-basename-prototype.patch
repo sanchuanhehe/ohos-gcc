@@ -1,0 +1,11 @@
+--- ndk/ohos/sysroot/usr/include/string.h	2025-12-11 05:30:44.557485736 +0800
++++ ndk/ohos/sysroot/usr/include/string.h	2025-12-11 05:05:20.893450710 +0800
+@@ -92,7 +92,7 @@
+ void *memrchr(const void *, int, size_t);
+ void *mempcpy(void *, const void *, size_t);
+ #ifndef __cplusplus
+-char *basename();
++char *basename(const char *);
+ #endif
+ #endif
+ 

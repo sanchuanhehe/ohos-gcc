@@ -1,0 +1,66 @@
+--- ndk/ohos/sysroot/usr/include/fortify/fortify.h	2025-12-11 04:42:51.089800165 +0800
++++ ndk/ohos/sysroot/usr/include/fortify/fortify.h.new	2025-12-11 04:43:42.490450176 +0800
+@@ -16,15 +16,21 @@
+ #ifndef	_FORTIFY_FORTIFY_H
+ #define	_FORTIFY_FORTIFY_H
+ 
++#ifndef __has_attribute
++#define __has_attribute(x) 0
++#endif
++
+ #ifdef __cplusplus
+ extern "C" {
+ #endif
+ 
+ #if (_FORTIFY_SOURCE == 1) || (_FORTIFY_SOURCE == 2)
++#if defined(__clang__) || (__has_attribute(overloadable) && __has_attribute(diagnose_if) && __has_attribute(pass_object_size))
+ #ifndef __FORTIFY_COMPILATION
+ #define __FORTIFY_COMPILATION
+ #endif
+ #endif
++#endif
+ 
+ #if (_FORTIFY_SOURCE == 2)
+ #ifndef __FORTIFY_RUNTIME
+@@ -60,16 +66,29 @@
+ #define __DIAGNOSE_ALWAYS_INLINE __attribute__((__always_inline__))
+ #define	__DIAGNOSE_PREDICT_TRUE(exp)	__builtin_expect((exp) != 0, 1)
+ #define	__DIAGNOSE_PREDICT_FALSE(exp)	__builtin_expect((exp) != 0, 0)
++#if __has_attribute(enable_if)
+ #define __DIAGNOSE_ENABLE_IF(cond, msg) __attribute__((enable_if(cond, msg)))
++#else
++#define __DIAGNOSE_ENABLE_IF(cond, msg)
++#endif
++#if __has_attribute(diagnose_if)
+ #define __DIAGNOSE_ERROR_IF(cond, msg) __attribute__((diagnose_if(cond, msg, "error")))
+ #define __DIAGNOSE_WARNING_IF(cond, msg) __attribute__((diagnose_if(cond, msg, "warning")))
++#else
++#define __DIAGNOSE_ERROR_IF(cond, msg)
++#define __DIAGNOSE_WARNING_IF(cond, msg)
++#endif
+ 
+ #define __DIAGNOSE_BOS_LEVEL (1)
+ #define __DIAGNOSE_BOSN(s, n) __builtin_object_size((s), (n))
+ #define __DIAGNOSE_BOS(s) __DIAGNOSE_BOSN((s), __DIAGNOSE_BOS_LEVEL)
+ 
+ #define __DIAGNOSE_BOS0(s) __DIAGNOSE_BOSN((s), 0)
++#if __has_attribute(pass_object_size)
+ #define __DIAGNOSE_PASS_OBJECT_SIZE_N(n) __attribute__((pass_object_size(n)))
++#else
++#define __DIAGNOSE_PASS_OBJECT_SIZE_N(n)
++#endif
+ #define __DIAGNOSE__SIZE_MUL_OVERFLOW(a, b, result) __builtin_umull_overflow(a, b, result)
+ #define __DIAGNOSE_PRINTFLIKE(x, y) __attribute__((__format__(printf, x, y)))
+ #define __DIAGNOSE_CALL_BYPASSING_FORTIFY(fn) (&(fn))
+@@ -100,7 +119,11 @@
+ #define __DIAGNOSE_BOS_TRIVIALLY_GE(bos_val, index) __DIAGNOSE_BOS_DYNAMIC_CHECK_IMPL((bos_val), >=, (index))
+ #define __DIAGNOSE_BOS_TRIVIALLY_GT(bos_val, index) __DIAGNOSE_BOS_DYNAMIC_CHECK_IMPL((bos_val), >, (index))
+ 
++#if __has_attribute(overloadable)
+ #define __DIAGNOSE_OVERLOAD __attribute__((overloadable))
++#else
++#define __DIAGNOSE_OVERLOAD
++#endif
+ 
+ /*
+  * A function to prevent this function from being applied.

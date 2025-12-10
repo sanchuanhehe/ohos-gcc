@@ -132,13 +132,7 @@ BOOTSTRAP_CONFIGURE="--enable-shared --enable-threads --enable-tls"
 [ "${LIBITM}" = "no" ] && BOOTSTRAP_CONFIGURE="${BOOTSTRAP_CONFIGURE} --disable-libitm"
 [ "${LIBQUADMATH}" = "no" ] && ARCH_CONFIGURE="${ARCH_CONFIGURE} --disable-libquadmath"
 
-# Cross-compilation configuration
-CROSS_CONFIGURE=""
-if [ "${CBUILD}" != "${CHOST}" ]; then
-    CROSS_CONFIGURE="--disable-bootstrap"
-elif [ "${CHOST}" != "${CTARGET}" ]; then
-    CROSS_CONFIGURE="--disable-bootstrap --with-sysroot=${SYSROOT}"
-fi
+# Cross-compilation configuration will be resolved during configure phase
 
 # Parallel build
 JOBS="${JOBS:-$(nproc)}"
@@ -226,6 +220,17 @@ ensure_binutils() {
     fi
 }
 
+apply_sysroot_patches() {
+    if [ -d "${SCRIPT_DIR}/sysroot-patches" ]; then
+        msg "Applying sysroot patches..."
+        for patch in "${SCRIPT_DIR}"/sysroot-patches/*.patch; do
+            [ -f "${patch}" ] || continue
+            msg "Applying $(basename "${patch}")..."
+            patch -d "${SCRIPT_DIR}" -p0 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
+        done
+    fi
+}
+
 prepare_gcc() {
     msg "Preparing GCC source directory..."
 
@@ -268,6 +273,7 @@ prepare_gcc() {
 
 configure_gcc() {
     ensure_binutils
+    apply_sysroot_patches
     prepare_gcc
 
     msg "Configuring GCC ${GCC_VERSION} for ${CTARGET}..."
@@ -331,6 +337,14 @@ configure_gcc() {
     fi
     
     # Configure GCC
+    local cross_configure=()
+    if [ "${CBUILD}" != "${CHOST}" ] || [ "${CHOST}" != "${CTARGET}" ]; then
+        cross_configure+=("--disable-bootstrap")
+    fi
+    if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
+        cross_configure+=("--with-sysroot=${SYSROOT}")
+    fi
+
     "${SOURCE_DIR}/configure" \
         --prefix="${INSTALL_PREFIX}" \
         --mandir="${INSTALL_PREFIX}/share/man" \
@@ -358,7 +372,7 @@ configure_gcc() {
         --disable-libssp \
         ${ARCH_CONFIGURE} \
         ${SANITIZER_CONFIGURE} \
-        ${CROSS_CONFIGURE} \
+        "${cross_configure[@]}" \
         ${BOOTSTRAP_CONFIGURE} \
         ${HASH_STYLE_CONFIGURE} \
         ${extra_binutils_flags} \
@@ -489,6 +503,14 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# Normalize sysroot path to absolute form if provided
+if [ -n "${SYSROOT}" ]; then
+    if ! resolved_sysroot=$(readlink -f "${SYSROOT}"); then
+        error "Failed to resolve sysroot path: ${SYSROOT}"
+    fi
+    SYSROOT="${resolved_sysroot}"
+fi
+
 # Resolve defaults that depend on parsed values
 CHOST="${CHOST:-${CBUILD}}"
 
@@ -511,6 +533,7 @@ fi
 case "${COMMAND}" in
     prepare)
         prepare_binutils
+        apply_sysroot_patches
         prepare_gcc
         ;;
     binutils)
