@@ -831,12 +831,17 @@ configure_gcc() {
     local host_pie_configure=""
     local build_time_tools=""
     local isl_configure=""
+    local static_libs_configure=""
     if is_canadian_cross; then
         zlib_configure=""
         host_pie_configure="--enable-host-pie"
         build_time_tools="--with-build-time-tools=${STAGE1_PREFIX}/bin"
         # Disable ISL version check - tests won't run in cross environment anyway
         isl_configure="--disable-isl-version-check"
+        # Disable static libstdc++/libgcc linking for build tools (ISL tests, etc.)
+        # This avoids link failures on aarch64 where static libgcc lacks __eqtf2/__gttf2
+        # (128-bit float comparison functions needed by static libstdc++)
+        static_libs_configure="--with-static-standard-libraries=no"
         msg "Canadian Cross: Using bundled zlib, enabling host PIE, and using stage 1 build-time tools"
     fi
 
@@ -915,6 +920,7 @@ configure_gcc() {
             ${host_pie_configure} \
             ${build_time_tools} \
             ${isl_configure} \
+            ${static_libs_configure} \
             --enable-checking=release \
             --enable-languages="${LANGUAGES}" \
             --enable-__cxa_atexit \
