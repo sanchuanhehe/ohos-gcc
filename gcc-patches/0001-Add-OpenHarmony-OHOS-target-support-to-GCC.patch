@@ -1,4 +1,4 @@
-From 105f05fb97d65e107257321ab9041fa6f858b1c5 Mon Sep 17 00:00:00 2001
+From 487c2d2923d4b7677735f791b82d04a2471adf44 Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
 Date: Fri, 16 Jan 2026 20:40:14 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
@@ -20,69 +20,66 @@ directories, and compilation flags. Key features include:
 
 ChangeLog:
 
-	* config.sub: Add OHOS target recognition in OS validation
-	and kernel-OS combinations for linux-ohos triplets.
+* config.sub: Add OHOS target recognition in OS validation
+and kernel-OS combinations for linux-ohos triplets.
 
 gcc/ChangeLog:
 
-	* config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
-	riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
-	OHOS targets. Add OHOS to indirect function support list.
-	* config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
-	configuration with LP64 ABI support and Cortex-A53 errata fixes.
-	* config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
-	fragment with multilib configuration.
-	* config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
-	with EABI support and float ABI variants (soft/hard float).
-	* config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
-	* config/i386/ohos.h: New file. i386-specific OHOS configuration
-	for 32-bit x86 targets.
-	* config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
-	for 64-bit x86 targets.
-	* config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
-	supporting both big-endian and little-endian variants.
-	* config/ohos-paths.h: New file. OHOS filesystem layout definitions
-	including standard SDK paths for headers and libraries.
-	* config/ohos.h: New file. Generic OHOS configuration with musl libc
-	integration, security features, and library specifications.
-	* config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
-	configuration with relaxation support.
-	* config/t-ohos: New file. OHOS-specific makefile fragment adjusting
-	multilib directory names from linux-gnu to linux-ohos.
+* config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
+riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
+OHOS targets. Add OHOS to indirect function support list.
+* config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
+configuration with LP64 ABI support and Cortex-A53 errata fixes.
+* config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
+fragment with multilib configuration.
+* config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
+with EABI support and float ABI variants (soft/hard float).
+* config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
+* config/i386/ohos.h: New file. i386-specific OHOS configuration
+for 32-bit x86 targets.
+* config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
+for 64-bit x86 targets.
+* config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
+supporting both big-endian and little-endian variants.
+* config/ohos.h: New file. Generic OHOS configuration with musl libc
+integration, security features, and library specifications.
+* config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
+configuration with relaxation support.
+* config/t-ohos: New file. OHOS-specific makefile fragment adjusting
+multilib directory names from linux-gnu to linux-ohos.
 
 libgcc/ChangeLog:
 
-	* config.host: Add OHOS target configurations for aarch64, arm,
-	i386/x86_64, riscv, and mips architectures with appropriate
-	unwind and atomic support.
-	* config/t-ohos-crtstuff: New file. OHOS-specific CRT object
-	compilation flags.
-	* gthr-posix.h: Exclude pthread_cancel on OHOS targets
-	(similar to Bionic) as it is not supported by musl libc in OHOS.
+* config.host: Add OHOS target configurations for aarch64, arm,
+i386/x86_64, riscv, and mips architectures with appropriate
+unwind and atomic support.
+* config/t-ohos-crtstuff: New file. OHOS-specific CRT object
+compilation flags.
+* gthr-posix.h: Exclude pthread_cancel on OHOS targets
+(similar to Bionic) as it is not supported by musl libc in OHOS.
 
 libstdc++-v3/ChangeLog:
 
-	* configure.host: Add linux-ohos case to use generic OS headers,
-	consistent with musl-based Linux distributions.
+* configure.host: Add linux-ohos case to use generic OS headers,
+consistent with musl-based Linux distributions.
 ---
  config.sub                        |   4 +-
  gcc/config.gcc                    |  84 ++++++++++++++++-
  gcc/config/aarch64/aarch64-ohos.h | 138 ++++++++++++++++++++++++++++
  gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
- gcc/config/arm/arm-ohos.h         | 121 +++++++++++++++++++++++++
+ gcc/config/arm/arm-ohos.h         | 121 ++++++++++++++++++++++++
  gcc/config/arm/t-arm-ohos         |  28 ++++++
- gcc/config/i386/ohos.h            | 111 +++++++++++++++++++++++
- gcc/config/i386/ohos64.h          | 111 +++++++++++++++++++++++
- gcc/config/mips/mips-ohos.h       | 122 +++++++++++++++++++++++++
- gcc/config/ohos-paths.h           |  72 +++++++++++++++
- gcc/config/ohos.h                 | 144 ++++++++++++++++++++++++++++++
+ gcc/config/i386/ohos.h            | 117 +++++++++++++++++++++++
+ gcc/config/i386/ohos64.h          | 117 +++++++++++++++++++++++
+ gcc/config/mips/mips-ohos.h       | 121 ++++++++++++++++++++++++
+ gcc/config/ohos.h                 | 148 ++++++++++++++++++++++++++++++
  gcc/config/riscv/riscv-ohos.h     | 118 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
  libgcc/config.host                |  52 ++++++++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 17 files changed, 1140 insertions(+), 6 deletions(-)
+ 16 files changed, 1083 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -90,7 +87,6 @@ libstdc++-v3/ChangeLog:
  create mode 100644 gcc/config/i386/ohos.h
  create mode 100644 gcc/config/i386/ohos64.h
  create mode 100644 gcc/config/mips/mips-ohos.h
- create mode 100644 gcc/config/ohos-paths.h
  create mode 100644 gcc/config/ohos.h
  create mode 100644 gcc/config/riscv/riscv-ohos.h
  create mode 100644 gcc/config/t-ohos
@@ -243,12 +239,12 @@ index 087aaa7be..0e94e6fab 100644
  			  echo "Unsupported target ${target}." 1>&2
 diff --git a/gcc/config/aarch64/aarch64-ohos.h b/gcc/config/aarch64/aarch64-ohos.h
 new file mode 100644
-index 000000000..dd0b32002
+index 000000000..94b17a59c
 --- /dev/null
 +++ b/gcc/config/aarch64/aarch64-ohos.h
 @@ -0,0 +1,138 @@
 +/* Definitions for AArch64 running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
@@ -387,12 +383,12 @@ index 000000000..dd0b32002
 +#endif /* GCC_AARCH64_OHOS_H */
 diff --git a/gcc/config/aarch64/t-aarch64-ohos b/gcc/config/aarch64/t-aarch64-ohos
 new file mode 100644
-index 000000000..2ec312e61
+index 000000000..ed0fb53ee
 --- /dev/null
 +++ b/gcc/config/aarch64/t-aarch64-ohos
 @@ -0,0 +1,28 @@
 +# Machine description for AArch64 architecture - OpenHarmony (OHOS) specific.
-+#  Copyright (C) 2024 Free Software Foundation, Inc.
++#  Copyright (C) 2026 Free Software Foundation, Inc.
 +#  Contributed by ARM Ltd.
 +#
 +#  This file is part of GCC.
@@ -421,12 +417,12 @@ index 000000000..2ec312e61
 +MULTILIB_OSDIRNAMES += mabi.ilp32=../libilp32$(call if_multiarch,:aarch64$(AARCH_BE)-linux-ohos_ilp32)
 diff --git a/gcc/config/arm/arm-ohos.h b/gcc/config/arm/arm-ohos.h
 new file mode 100644
-index 000000000..847a12558
+index 000000000..ac3127b29
 --- /dev/null
 +++ b/gcc/config/arm/arm-ohos.h
 @@ -0,0 +1,121 @@
 +/* Definitions for ARM running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
@@ -548,12 +544,12 @@ index 000000000..847a12558
 +#endif /* GCC_ARM_OHOS_H */
 diff --git a/gcc/config/arm/t-arm-ohos b/gcc/config/arm/t-arm-ohos
 new file mode 100644
-index 000000000..f0a37350e
+index 000000000..23ed89983
 --- /dev/null
 +++ b/gcc/config/arm/t-arm-ohos
 @@ -0,0 +1,28 @@
 +# Machine description for ARM architecture - OpenHarmony (OHOS) specific.
-+#  Copyright (C) 2024 Free Software Foundation, Inc.
++#  Copyright (C) 2026 Free Software Foundation, Inc.
 +#  Contributed by ARM Ltd.
 +#
 +#  This file is part of GCC.
@@ -582,12 +578,12 @@ index 000000000..f0a37350e
 +MULTILIB_OSDIRNAMES += mfloat-abi.hard=../lib/arm$(ARM_BE)-linux-ohoshf$(call if_multiarch,:arm$(ARM_BE)-linux-ohoshf)
 diff --git a/gcc/config/i386/ohos.h b/gcc/config/i386/ohos.h
 new file mode 100644
-index 000000000..d4c21022f
+index 000000000..e56eee3b3
 --- /dev/null
 +++ b/gcc/config/i386/ohos.h
-@@ -0,0 +1,111 @@
-+/* Definitions for x86_64 running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
+@@ -0,0 +1,117 @@
++/* Definitions for i386 running OpenHarmony (OHOS).
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
@@ -609,8 +605,7 @@ index 000000000..d4c21022f
 +#define GCC_I386_OHOS_H
 +
 +/* Define architecture-specific dynamic linker - match LLVM getDynamicLinker() */
-+
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-i386.so.1"
++#define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-i386.so.1"
 +
 +
 +/* Include the generic OpenHarmony configuration */
@@ -675,9 +670,16 @@ index 000000000..d4c21022f
 +#define ENDFILE_SPEC \
 +  "%{shared|pie:crtendS.o%s;:crtend.o%s} \
 +   %R/usr/lib/crtn.o%s"
-+#ifdef LINK_SPEC
++
++/* Override CC1_SPEC from linux-common.h to remove Android logic */
++#undef CC1_SPEC
++#define CC1_SPEC GNU_USER_TARGET_CC1_SPEC
++
++/* Override LIB_SPEC from linux-common.h to remove Android logic */
++#undef LIB_SPEC
++#define LIB_SPEC GNU_USER_TARGET_LIB_SPEC
++
 +#undef LINK_SPEC
-+#endif
 +/* Define the link spec for x86 OpenHarmony */
 +#define LINK_SPEC						\
 +  "%{" SPEC_32 ":-m elf_i386} "				\
@@ -699,12 +701,12 @@ index 000000000..d4c21022f
 +#endif /* GCC_I386_OHOS_H */
 diff --git a/gcc/config/i386/ohos64.h b/gcc/config/i386/ohos64.h
 new file mode 100644
-index 000000000..2b9561425
+index 000000000..a09bd2603
 --- /dev/null
 +++ b/gcc/config/i386/ohos64.h
-@@ -0,0 +1,111 @@
+@@ -0,0 +1,117 @@
 +/* Definitions for x86_64 running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
@@ -726,8 +728,7 @@ index 000000000..2b9561425
 +#define GCC_I386_OHOS64_H
 +
 +/* Define architecture-specific dynamic linker - match LLVM getDynamicLinker() */
-+
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-x86_64.so.1"
++#define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-x86_64.so.1"
 +
 +
 +/* Include the generic OpenHarmony configuration */
@@ -792,9 +793,16 @@ index 000000000..2b9561425
 +#define ENDFILE_SPEC \
 +  "%{shared|pie:crtendS.o%s;:crtend.o%s} \
 +   %R/usr/lib/crtn.o%s"
-+#ifdef LINK_SPEC
++
++/* Override CC1_SPEC from linux-common.h to remove Android logic */
++#undef CC1_SPEC
++#define CC1_SPEC GNU_USER_TARGET_CC1_SPEC
++
++/* Override LIB_SPEC from linux-common.h to remove Android logic */
++#undef LIB_SPEC
++#define LIB_SPEC GNU_USER_TARGET_LIB_SPEC
++
 +#undef LINK_SPEC
-+#endif
 +/* Define the link spec for x86 OpenHarmony */
 +#define LINK_SPEC						\
 +  "%{" SPEC_32 ":-m elf_i386} "				\
@@ -816,12 +824,12 @@ index 000000000..2b9561425
 +#endif /* GCC_I386_OHOS64_H */
 diff --git a/gcc/config/mips/mips-ohos.h b/gcc/config/mips/mips-ohos.h
 new file mode 100644
-index 000000000..4a56a696d
+index 000000000..f9abd6ff8
 --- /dev/null
 +++ b/gcc/config/mips/mips-ohos.h
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,121 @@
 +/* Definitions for MIPS running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
@@ -851,11 +859,10 @@ index 000000000..4a56a696d
 +#define OHOS_DYNAMIC_LINKERN32 \
 +  "/lib/ld-musl-mipsn32%{mips64r6:r6}%{EL:el}%{msoft-float:-sf}.so.1"
 +
-+/* Select appropriate linker based on ABI */
-+#define OHOS_ARCH_DYNAMIC_LINKER \
-+  "%{mabi=32:" OHOS_DYNAMIC_LINKER32 ";}" \
-+  "%{mabi=n32:" OHOS_DYNAMIC_LINKERN32 ";}" \
-+  "%{mabi=64:" OHOS_DYNAMIC_LINKER64 ";}"
++/* Select appropriate linker based on ABI - use same pattern as gnu-user.h */
++#define OHOS_ARCH_DYNAMIC_LINKER32 OHOS_DYNAMIC_LINKER32
++#define OHOS_ARCH_DYNAMIC_LINKER64 OHOS_DYNAMIC_LINKER64
++#define OHOS_ARCH_DYNAMIC_LINKERN32 OHOS_DYNAMIC_LINKERN32
 +
 +/* Include the generic OpenHarmony configuration */
 +/* Note: ohos.h is already included via tm.h, no need to include again */
@@ -923,16 +930,16 @@ index 000000000..4a56a696d
 +  "%{shared|pie:crtendS.o%s;:crtend.o%s} \
 +   %R/usr/lib/crtn.o%s"
 +
-+/* Define the link spec for MIPS OpenHarmony */
++/* Define the link spec for MIPS OpenHarmony - follow gnu-user.h pattern */
++#undef LINK_SPEC
 +#define LINK_SPEC						\
-+  "%{G*} "							\
-+  "%{mips1} %{mips2} %{mips3} %{mips4} "			\
-+  "%{bestGnum} %{shared} %{non_shared} "			\
-+  "%{call_shared} %{no_archive} %{exact_version} "		\
-+  "%{!shared: "							\
++  "%{G*} %{EB} %{EL} %{mips*} %{shared} "			\
++  "%{!shared: "						\
 +    "%{!static: "						\
 +      "%{rdynamic:-export-dynamic} "				\
-+      "-dynamic-linker " OHOS_DYNAMIC_LINKER "} "		\
++      "%{mabi=n32: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKERN32 "} "	\
++      "%{mabi=64: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKER64 "} "	\
++      "%{mabi=32: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKER32 "}} "	\
 +    "%{static:-static}} "					\
 +  "-L%R/usr/lib " 						\
 +  "-L%R/lib "
@@ -942,14 +949,14 @@ index 000000000..4a56a696d
 +#define TARGET_DEFAULT_ASYNC_UNWIND_TABLES 1
 +
 +#endif /* GCC_MIPS_OHOS_H */
-diff --git a/gcc/config/ohos-paths.h b/gcc/config/ohos-paths.h
+diff --git a/gcc/config/ohos.h b/gcc/config/ohos.h
 new file mode 100644
-index 000000000..aaaad84f1
+index 000000000..78b72bc7c
 --- /dev/null
-+++ b/gcc/config/ohos-paths.h
-@@ -0,0 +1,72 @@
-+/* OpenHarmony sysroot and toolchain utilities
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++++ b/gcc/config/ohos.h
+@@ -0,0 +1,148 @@
++/* OpenHarmony (OHOS) configuration.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +This file is part of GCC.
 +
@@ -966,84 +973,10 @@ index 000000000..aaaad84f1
 +You should have received a copy of the GNU General Public License
 +along with GCC; see the file COPYING3.  If not see
 +<http://www.gnu.org/licenses/>.  */
-+
-+#ifndef GCC_OHOS_PATHS_H
-+#define GCC_OHOS_PATHS_H
-+
-+/* OpenHarmony standard filesystem layout support.
-+
-+   This header defines the standard paths for OpenHarmony SDK layout:
-+   - Headers: sysroot/usr/include/
-+   - Libraries: sysroot/usr/lib/
-+   - CRT files: sysroot/usr/lib/crt*.o
-+
-+   Note: OHOS uses a flat /usr/lib/ structure without architecture subdirectories.
-+   The paths are designed to work with the official OpenHarmony SDK
-+   structure as distributed by the OpenHarmony project.
-+*/
-+
-+/* Include directory patterns - OHOS uses flat structure */
-+#define OHOS_GENERIC_INCLUDE_PATH "/usr/include"
-+
-+/* Library directory patterns - OHOS uses flat structure */
-+#define OHOS_GENERIC_LIB_PATH "/usr/lib"
-+#define OHOS_LIB_FALLBACK_PATH "/lib"
-+
-+/* CRT file location - direct in /usr/lib/ */
-+#define OHOS_CRT_FILE_PATTERN "/usr/lib/%s"
 +
 +/* Helper fragment for include dirs - OHOS uses flat /usr/include/ */
 +#define OHOS_MULTIARCH_INCLUDE_SPEC(archdir) \
 +  " %{!nostdinc:%{!fself-test=*: -idirafter %R/usr/include}}"
-+
-+/* Standard OpenHarmony target triplets */
-+#define OHOS_AARCH64_TRIPLET "aarch64-linux-ohos"
-+#define OHOS_ARM_TRIPLET "arm-linux-ohos"
-+#define OHOS_X86_64_TRIPLET "x86_64-linux-ohos"
-+
-+/* Helper macros for path construction */
-+#define OHOS_SYSROOT_PATH(path) "%R" path
-+
-+/* Standard search path lists - OHOS uses flat structure */
-+#define OHOS_STANDARD_INCLUDE_PATHS \
-+  { OHOS_SYSROOT_PATH("/usr/include"), \
-+    NULL }
-+
-+#define OHOS_STANDARD_LIB_PATHS \
-+  { OHOS_SYSROOT_PATH("/usr/lib"), \
-+    OHOS_SYSROOT_PATH("/lib"), \
-+    NULL }
-+
-+/* CRT files standard locations - direct in /usr/lib/ */
-+#define OHOS_CRT1_PATH "/usr/lib/crt1.o"
-+#define OHOS_CRTI_PATH "/usr/lib/crti.o"
-+#define OHOS_CRTN_PATH "/usr/lib/crtn.o"
-+
-+#endif /* GCC_OHOS_PATHS_H */
-diff --git a/gcc/config/ohos.h b/gcc/config/ohos.h
-new file mode 100644
-index 000000000..cae0fe6e0
---- /dev/null
-+++ b/gcc/config/ohos.h
-@@ -0,0 +1,144 @@
-+/* OpenHarmony (OHOS) configuration.
-+   Copyright (C) 2024 Free Software Foundation, Inc.
-+
-+This file is part of GCC.
-+
-+GCC is free software; you can redistribute it and/or modify
-+it under the terms of the GNU General Public License as published by
-+the Free Software Foundation; either version 3, or (at your option)
-+any later version.
-+
-+GCC is distributed in the hope that it will be useful,
-+but WITHOUT ANY WARRANTY; without even the implied warranty of
-+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-+GNU General Public License for more details.
-+
-+You should have received a copy of the GNU General Public License
-+along with GCC; see the file COPYING3.  If not see
-+<http://www.gnu.org/licenses/>.  */
 +
 +/* OpenHarmony uses musl libc but with some differences */
 +#undef OPTION_GLIBC
@@ -1172,12 +1105,12 @@ index 000000000..cae0fe6e0
 +  "This combination is fully supported and widely used in production."
 diff --git a/gcc/config/riscv/riscv-ohos.h b/gcc/config/riscv/riscv-ohos.h
 new file mode 100644
-index 000000000..52c89f06e
+index 000000000..8d14f13b4
 --- /dev/null
 +++ b/gcc/config/riscv/riscv-ohos.h
 @@ -0,0 +1,118 @@
 +/* Definitions for RISC-V running OpenHarmony (OHOS).
-+   Copyright (C) 2024 Free Software Foundation, Inc.
++   Copyright (C) 2026 Free Software Foundation, Inc.
 +
 +   This file is part of GCC.
 +
