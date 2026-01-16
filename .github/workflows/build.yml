@@ -39,6 +39,8 @@ jobs:
   build-cross:
     name: Stage 1 - Cross Compiler ${{ matrix.target }}
     runs-on: ${{ matrix.runner }}
+    # Require manual approval for PRs from forks
+    environment: ${{ github.event_name == 'pull_request' && 'pr-approval' || '' }}
     timeout-minutes: 180
     
     strategy:
