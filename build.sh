@@ -543,11 +543,17 @@ prepare_binutils() {
         tar -xf "${tarball}" || error "Failed to extract binutils source"
     fi
 
+    # Update config.sub/config.guess to latest versions with OHOS support
+    # This replaces the need for config.sub patches
+    update_config_scripts "${BINUTILS_SOURCE_DIR}"
+
     msg "Applying binutils patches..."
     cd "${BINUTILS_SOURCE_DIR}"
 
     for patch in "${SCRIPT_DIR}"/binutils-patches/*.patch; do
         [ -f "${patch}" ] || continue
+        # Skip config.sub patches since we use auto-update
+        [[ "$(basename "${patch}")" == *config-sub* ]] && continue
         msg "Applying $(basename "${patch}")..."
         patch -p1 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
     done
