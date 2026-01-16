@@ -651,6 +651,69 @@ apply_sysroot_patches() {
     fi
 }
 
+# Update config.sub and config.guess to latest versions from GNU config
+# This is needed for OHOS target support (already in upstream config.sub)
+update_config_scripts() {
+    local dir="$1"
+    local config_sub_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.sub"
+    local config_guess_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.guess"
+    local tmp_config_sub="/tmp/config.sub.$$"
+    local tmp_config_guess="/tmp/config.guess.$$"
+    local download_timeout=30
+    
+    msg "Updating config.sub and config.guess in ${dir}..."
+    
+    # Download config.sub once and verify it has OHOS support
+    msg "  Downloading latest config.sub from GNU..."
+    if ! curl -sL --connect-timeout "${download_timeout}" "${config_sub_url}" -o "${tmp_config_sub}" 2>/dev/null; then
+        msg "  Warning: Failed to download config.sub, keeping originals"
+        rm -f "${tmp_config_sub}"
+        return 0
+    fi
+    
+    # Verify downloaded file has proper OHOS support (linux-ohos* pattern)
+    if ! grep -qE 'linux-ohos\*' "${tmp_config_sub}" 2>/dev/null; then
+        msg "  Warning: Downloaded config.sub doesn't have OHOS support, keeping originals"
+        rm -f "${tmp_config_sub}"
+        return 0
+    fi
+    
+    msg "  Downloaded config.sub verified with OHOS support"
+    
+    # Download config.guess once
+    curl -sL --connect-timeout "${download_timeout}" "${config_guess_url}" -o "${tmp_config_guess}" 2>/dev/null || true
+    
+    # Find all config.sub files and update them if needed
+    local updated=0
+    local skipped=0
+    while IFS= read -r config_file; do
+        # Check if this file already has proper OHOS support
+        if grep -qE 'linux-ohos\*' "${config_file}" 2>/dev/null; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Update config.sub
+        cp "${tmp_config_sub}" "${config_file}"
+        chmod +x "${config_file}"
+        updated=$((updated + 1))
+        
+        # Update config.guess if it exists in the same directory
+        local config_dir guess_file
+        config_dir=$(dirname "${config_file}")
+        guess_file="${config_dir}/config.guess"
+        if [ -f "${guess_file}" ] && [ -s "${tmp_config_guess}" ]; then
+            cp "${tmp_config_guess}" "${guess_file}"
+            chmod +x "${guess_file}"
+        fi
+    done < <(find "${dir}" -name "config.sub" -type f 2>/dev/null)
+    
+    # Cleanup
+    rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+    
+    msg "  Updated ${updated} config.sub files, ${skipped} already had OHOS support"
+}
+
 # Download GCC prerequisites (GMP, MPFR, MPC, ISL, gettext)
 download_prerequisites() {
     msg "Checking GCC prerequisites..."
@@ -737,6 +800,10 @@ prepare_gcc() {
 
     # Download prerequisites (GMP, MPFR, MPC, ISL, gettext)
     download_prerequisites
+
+    # Update config.sub/config.guess to latest versions with OHOS support
+    # This is done before applying patches since upstream config.sub now has OHOS support
+    update_config_scripts "${SOURCE_DIR}"
 
     # Apply patches
     msg "Applying GCC patches..."
