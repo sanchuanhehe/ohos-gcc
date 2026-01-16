@@ -665,35 +665,35 @@ update_config_scripts() {
     local config_guess_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.guess"
     local tmp_config_sub="/tmp/config.sub.$$"
     local tmp_config_guess="/tmp/config.guess.$$"
-    local download_timeout=30
+    local download_timeout=60
     
     msg "Updating config.sub and config.guess in ${dir}..."
     
-    # Download config.sub once and verify it has OHOS support
+    # Download config.sub - fail if download fails
     msg "  Downloading latest config.sub from GNU..."
-    if ! curl -sL --connect-timeout "${download_timeout}" "${config_sub_url}" -o "${tmp_config_sub}" 2>/dev/null; then
-        msg "  Warning: Failed to download config.sub, keeping originals"
+    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_sub_url}" -o "${tmp_config_sub}"; then
         rm -f "${tmp_config_sub}"
-        return 0
+        error "Failed to download config.sub from ${config_sub_url}"
     fi
     
     # Verify downloaded file has proper OHOS support (linux-ohos pattern)
     if ! grep -qE 'linux-ohos' "${tmp_config_sub}" 2>/dev/null; then
-        msg "  Warning: Downloaded config.sub doesn't have OHOS support, keeping originals"
         rm -f "${tmp_config_sub}"
-        return 0
+        error "Downloaded config.sub doesn't have OHOS support"
     fi
     
     msg "  Downloaded config.sub verified with OHOS support"
     
-    # Download config.guess once
+    # Download config.guess - fail if download fails
     msg "  Downloading latest config.guess from GNU..."
-    if ! curl -sL --connect-timeout "${download_timeout}" "${config_guess_url}" -o "${tmp_config_guess}" 2>/dev/null; then
-        msg "  Warning: Failed to download config.guess, will skip updating config.guess files"
-        rm -f "${tmp_config_guess}"
-    elif [ ! -s "${tmp_config_guess}" ]; then
-        msg "  Warning: Downloaded config.guess is empty, will skip updating config.guess files"
-        rm -f "${tmp_config_guess}"
+    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_guess_url}" -o "${tmp_config_guess}"; then
+        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+        error "Failed to download config.guess from ${config_guess_url}"
+    fi
+    
+    if [ ! -s "${tmp_config_guess}" ]; then
+        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+        error "Downloaded config.guess is empty"
     fi
     
     # Find all config.sub files and update them if needed
