@@ -1,6 +1,6 @@
-From 0b543061faf46769b825782c2ac9664e07857596 Mon Sep 17 00:00:00 2001
+From 69554267b0c31dbe83b579299edffa0c37db1c67 Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
-Date: Fri, 16 Jan 2026 19:13:14 +0800
+Date: Fri, 16 Jan 2026 20:24:20 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
 
 This patch adds comprehensive support for OpenHarmony OS across multiple
@@ -66,23 +66,23 @@ libstdc++-v3/ChangeLog:
     consistent with musl-based Linux distributions.
 ---
  config.sub                        |   4 +-
- gcc/config.gcc                    |  87 ++++++++++++++++-
- gcc/config/aarch64/aarch64-ohos.h | 138 +++++++++++++++++++++++++++
+ gcc/config.gcc                    |  84 ++++++++++++++++-
+ gcc/config/aarch64/aarch64-ohos.h | 138 ++++++++++++++++++++++++++++
  gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
- gcc/config/arm/arm-ohos.h         | 125 ++++++++++++++++++++++++
+ gcc/config/arm/arm-ohos.h         | 121 +++++++++++++++++++++++++
  gcc/config/arm/t-arm-ohos         |  28 ++++++
- gcc/config/i386/ohos.h            | 111 ++++++++++++++++++++++
- gcc/config/i386/ohos64.h          | 111 ++++++++++++++++++++++
- gcc/config/mips/mips-ohos.h       | 134 ++++++++++++++++++++++++++
- gcc/config/ohos-paths.h           |  72 ++++++++++++++
- gcc/config/ohos.h                 | 152 ++++++++++++++++++++++++++++++
- gcc/config/riscv/riscv-ohos.h     | 125 ++++++++++++++++++++++++
+ gcc/config/i386/ohos.h            | 111 +++++++++++++++++++++++
+ gcc/config/i386/ohos64.h          | 111 +++++++++++++++++++++++
+ gcc/config/mips/mips-ohos.h       | 122 +++++++++++++++++++++++++
+ gcc/config/ohos-paths.h           |  72 +++++++++++++++
+ gcc/config/ohos.h                 | 144 ++++++++++++++++++++++++++++++
+ gcc/config/riscv/riscv-ohos.h     | 118 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
- libgcc/config.host                |  25 ++++-
+ libgcc/config.host                |  33 ++++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 17 files changed, 1147 insertions(+), 6 deletions(-)
+ 17 files changed, 1121 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -119,7 +119,7 @@ index 38f3d037a..0a04e2db3 100755
  	uclinux-uclibc* )
  		;;
 diff --git a/gcc/config.gcc b/gcc/config.gcc
-index 087aaa7be..6d76255e8 100644
+index 087aaa7be..0e94e6fab 100644
 --- a/gcc/config.gcc
 +++ b/gcc/config.gcc
 @@ -920,6 +920,9 @@ case ${target} in
@@ -132,7 +132,7 @@ index 087aaa7be..6d76255e8 100644
      *)
        tm_defines="$tm_defines DEFAULT_LIBC=LIBC_GLIBC"
        ;;
-@@ -1236,6 +1239,84 @@ aarch64*-*-netbsd*)
+@@ -1236,6 +1239,81 @@ aarch64*-*-netbsd*)
  	tmake_file="${tmake_file} aarch64/t-aarch64 aarch64/t-aarch64-netbsd"
  	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
  	;;
@@ -183,31 +183,28 @@ index 087aaa7be..6d76255e8 100644
 +	tmake_file="${tmake_file} mips/t-mips"
 +	extra_options="${extra_options} linux.opt"
 +	case ${target} in
-+	mipsisa32r6*)
++	mipsisa32r6*-*-linux-ohos*)
 +		default_mips_arch=mips32r6
 +		;;
-+	mipsisa32r2*)
++	mipsisa32r2*-*-linux-ohos*)
 +		default_mips_arch=mips32r2
 +		;;
-+	mipsisa32*)
++	mipsisa32*-*-linux-ohos*)
 +		default_mips_arch=mips32
 +		;;
-+	mips64el-st-linux-gnu)
-+		default_mips_abi=n32
-+		;;
-+	mips64octeon*-*-linux*)
++	mips64octeon*-*-linux-ohos*)
 +		default_mips_abi=n32
 +		default_mips_arch=octeon
 +		;;
-+	mipsisa64r6*-*-linux*)
++	mipsisa64r6*-*-linux-ohos*)
 +		default_mips_abi=n32
 +		default_mips_arch=mips64r6
 +		;;
-+	mipsisa64r2*-*-linux*)
++	mipsisa64r2*-*-linux-ohos*)
 +		default_mips_abi=n32
 +		default_mips_arch=mips64r2
 +		;;
-+	mips64*-*-linux* | mipsisa64*-*-linux*)
++	mips64*-*-linux-ohos* | mipsisa64*-*-linux-ohos*)
 +		default_mips_abi=n32
 +		default_mips_arch=mips64
 +		;;
@@ -217,7 +214,7 @@ index 087aaa7be..6d76255e8 100644
  aarch64*-*-linux*)
  	tm_file="${tm_file} elfos.h gnu-user.h linux.h glibc-stdint.h"
  	tm_file="${tm_file} aarch64/aarch64-elf.h aarch64/aarch64-errata.h aarch64/aarch64-linux.h"
-@@ -3660,6 +3741,9 @@ case ${target} in
+@@ -3660,6 +3738,9 @@ case ${target} in
  *-linux-musl*)
  	tmake_file="${tmake_file} t-musl"
  	;;
@@ -227,7 +224,7 @@ index 087aaa7be..6d76255e8 100644
  *-linux-uclibc*)
  	tmake_file="${tmake_file} t-uclibc"
  	;;
-@@ -3668,7 +3752,7 @@ esac
+@@ -3668,7 +3749,7 @@ esac
  # Assume the existence of indirect function support and allow the use of the
  # resolver attribute.
  case ${target} in
@@ -236,7 +233,7 @@ index 087aaa7be..6d76255e8 100644
          ;;
  *-*-kfreebsd*-gnu | *-*-kopensolaris*-gnu)
          ;;
-@@ -5108,6 +5192,7 @@ case "${target}" in
+@@ -5108,6 +5189,7 @@ case "${target}" in
  		case ${target} in
  		  *-linux-gnu*) triplet_os="linux-gnu";;
  		  *-linux-musl*) triplet_os="linux-musl";;
@@ -424,10 +421,10 @@ index 000000000..2ec312e61
 +MULTILIB_OSDIRNAMES += mabi.ilp32=../libilp32$(call if_multiarch,:aarch64$(AARCH_BE)-linux-ohos_ilp32)
 diff --git a/gcc/config/arm/arm-ohos.h b/gcc/config/arm/arm-ohos.h
 new file mode 100644
-index 000000000..0f75274b5
+index 000000000..847a12558
 --- /dev/null
 +++ b/gcc/config/arm/arm-ohos.h
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,121 @@
 +/* Definitions for ARM running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -450,12 +447,12 @@ index 000000000..0f75274b5
 +#ifndef GCC_ARM_OHOS_H
 +#define GCC_ARM_OHOS_H
 +
-+/* Define architecture-specific dynamic linker with float ABI support */
-+#ifdef TARGET_HARD_FLOAT_ABI
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-armhf.so.1"
-+#else
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-arm.so.1"
-+#endif
++/* Define architecture-specific dynamic linker with float ABI support.
++   Use spec string to select at link time based on -mfloat-abi option. */
++#define OHOS_DYNAMIC_LINKER_SOFT "/lib/ld-musl-arm.so.1"
++#define OHOS_DYNAMIC_LINKER_HARD "/lib/ld-musl-armhf.so.1"
++#define OHOS_ARCH_DYNAMIC_LINKER \
++  "%{mfloat-abi=hard:" OHOS_DYNAMIC_LINKER_HARD ";:" OHOS_DYNAMIC_LINKER_SOFT "}"
 +
 +/* Include the generic OpenHarmony configuration */
 +/* Note: ohos.h is already included via tm.h, no need to include again */
@@ -475,12 +472,8 @@ index 000000000..0f75274b5
 +    }						\
 +  while (0)
 +
-+/* OpenHarmony library paths for ARM */
-+#ifdef TARGET_HARD_FLOAT_ABI
-+# define OHOS_ARCH_LIB_DIR "arm-linux-ohoseabihf"
-+#else
-+# define OHOS_ARCH_LIB_DIR "arm-linux-ohos"
-+#endif
++/* OpenHarmony library paths for ARM - use consistent naming */
++#define OHOS_ARCH_LIB_DIR "arm-linux-ohos"
 +
 +/* Inject architecture-specific include directories via the CPP spec. */
 +#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
@@ -706,7 +699,7 @@ index 000000000..d4c21022f
 +#endif /* GCC_I386_OHOS_H */
 diff --git a/gcc/config/i386/ohos64.h b/gcc/config/i386/ohos64.h
 new file mode 100644
-index 000000000..7ecbfd7a1
+index 000000000..2b9561425
 --- /dev/null
 +++ b/gcc/config/i386/ohos64.h
 @@ -0,0 +1,111 @@
@@ -729,8 +722,8 @@ index 000000000..7ecbfd7a1
 +   along with GCC; see the file COPYING3.  If not see
 +   <http://www.gnu.org/licenses/>.  */
 +
-+#ifndef GCC_I386_OHOS_H
-+#define GCC_I386_OHOS_H
++#ifndef GCC_I386_OHOS64_H
++#define GCC_I386_OHOS64_H
 +
 +/* Define architecture-specific dynamic linker - match LLVM getDynamicLinker() */
 +
@@ -820,13 +813,13 @@ index 000000000..7ecbfd7a1
 +#undef TARGET_DEFAULT_ASYNC_UNWIND_TABLES
 +#define TARGET_DEFAULT_ASYNC_UNWIND_TABLES 1
 +
-+#endif /* GCC_I386_OHOS_H */
++#endif /* GCC_I386_OHOS64_H */
 diff --git a/gcc/config/mips/mips-ohos.h b/gcc/config/mips/mips-ohos.h
 new file mode 100644
-index 000000000..f849a30b1
+index 000000000..4a56a696d
 --- /dev/null
 +++ b/gcc/config/mips/mips-ohos.h
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,122 @@
 +/* Definitions for MIPS running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -849,20 +842,20 @@ index 000000000..f849a30b1
 +#ifndef GCC_MIPS_OHOS_H
 +#define GCC_MIPS_OHOS_H
 +
-+/* Define architecture-specific dynamic linker - match LLVM getDynamicLinker() */
-+#if TARGET_64BIT_DEFAULT
-+# if TARGET_BIG_ENDIAN_DEFAULT
-+#  define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-mips64.so.1"
-+# else
-+#  define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-mips64el.so.1"
-+# endif
-+#else
-+# if TARGET_BIG_ENDIAN_DEFAULT
-+#  define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-mips.so.1"
-+# else
-+#  define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-mipsel.so.1"
-+# endif
-+#endif
++/* Define architecture-specific dynamic linker - use spec strings for runtime selection.
++   Match LLVM getDynamicLinker() and musl conventions. */
++#define OHOS_DYNAMIC_LINKER32 \
++  "/lib/ld-musl-mips%{mips32r6|mips64r6:r6}%{EL:el}%{msoft-float:-sf}.so.1"
++#define OHOS_DYNAMIC_LINKER64 \
++  "/lib/ld-musl-mips64%{mips64r6:r6}%{EL:el}%{msoft-float:-sf}.so.1"
++#define OHOS_DYNAMIC_LINKERN32 \
++  "/lib/ld-musl-mipsn32%{mips64r6:r6}%{EL:el}%{msoft-float:-sf}.so.1"
++
++/* Select appropriate linker based on ABI */
++#define OHOS_ARCH_DYNAMIC_LINKER \
++  "%{mabi=32:" OHOS_DYNAMIC_LINKER32 ";}" \
++  "%{mabi=n32:" OHOS_DYNAMIC_LINKERN32 ";}" \
++  "%{mabi=64:" OHOS_DYNAMIC_LINKER64 ";}"
 +
 +/* Include the generic OpenHarmony configuration */
 +/* Note: ohos.h is already included via tm.h, no need to include again */
@@ -884,20 +877,8 @@ index 000000000..f849a30b1
 +    }						\
 +  while (0)
 +
-+/* OpenHarmony library paths for MIPS */
-+#if TARGET_64BIT_DEFAULT
-+# if TARGET_BIG_ENDIAN_DEFAULT
-+#  define OHOS_ARCH_LIB_DIR "mips64-linux-ohos"
-+# else
-+#  define OHOS_ARCH_LIB_DIR "mips64el-linux-ohos"
-+# endif
-+#else
-+# if TARGET_BIG_ENDIAN_DEFAULT
-+#  define OHOS_ARCH_LIB_DIR "mips-linux-ohos"
-+# else
-+#  define OHOS_ARCH_LIB_DIR "mipsel-linux-ohos"
-+# endif
-+#endif
++/* OpenHarmony library paths for MIPS - use consistent naming */
++#define OHOS_ARCH_LIB_DIR "mips-linux-ohos"
 +
 +/* Inject architecture-specific include directories via the CPP spec. */
 +#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
@@ -1041,10 +1022,10 @@ index 000000000..aaaad84f1
 +#endif /* GCC_OHOS_PATHS_H */
 diff --git a/gcc/config/ohos.h b/gcc/config/ohos.h
 new file mode 100644
-index 000000000..c84d2b5ff
+index 000000000..cae0fe6e0
 --- /dev/null
 +++ b/gcc/config/ohos.h
-@@ -0,0 +1,152 @@
+@@ -0,0 +1,144 @@
 +/* OpenHarmony (OHOS) configuration.
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -1110,20 +1091,12 @@ index 000000000..c84d2b5ff
 +#define TARGET_THREAD_FILE "posix"
 +
 +/* Enable stack protector by default (OpenHarmony security feature) */
-+#ifndef CC1_SPEC
-+#define CC1_SPEC ""
-+#endif
-+
-+#undef CC1_SPEC
-+#define CC1_SPEC \
-+  CC1_SPEC " %{!fno-stack-protector:%{!fstack-protector-all:%{!fstack-protector-strong:%{!fstack-protector:-fstack-protector}}}}"
++#define OHOS_CC1_SPEC \
++  " %{!fno-stack-protector:%{!fstack-protector-all:%{!fstack-protector-strong:%{!fstack-protector:-fstack-protector}}}}"
 +
 +/* Link spec is defined by architecture-specific ohos headers */
 +
 +/* Default to position independent executables */
-+#ifndef CC1_SPEC
-+#define CC1_SPEC ""
-+#endif
 +
 +#ifndef CC1PLUS_SPEC
 +#define CC1PLUS_SPEC ""
@@ -1199,10 +1172,10 @@ index 000000000..c84d2b5ff
 +  "This combination is fully supported and widely used in production."
 diff --git a/gcc/config/riscv/riscv-ohos.h b/gcc/config/riscv/riscv-ohos.h
 new file mode 100644
-index 000000000..548adcf9b
+index 000000000..58874849c
 --- /dev/null
 +++ b/gcc/config/riscv/riscv-ohos.h
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,118 @@
 +/* Definitions for RISC-V running OpenHarmony (OHOS).
 +   Copyright (C) 2024 Free Software Foundation, Inc.
 +
@@ -1225,12 +1198,9 @@ index 000000000..548adcf9b
 +#ifndef GCC_RISCV_OHOS_H
 +#define GCC_RISCV_OHOS_H
 +
-+/* Define architecture-specific dynamic linker */
-+#ifdef TARGET_64BIT_DEFAULT
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-riscv64.so.1"
-+#else
-+# define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-riscv32.so.1"
-+#endif
++/* Define architecture-specific dynamic linker using XLEN_SPEC for 32/64 bit.
++   XLEN_SPEC is defined in riscv.h and expands to "32" or "64" based on -march. */
++#define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-riscv" XLEN_SPEC ".so.1"
 +
 +/* Include the generic OpenHarmony configuration */
 +/* Note: ohos.h is already included via tm.h, no need to include again */
@@ -1253,11 +1223,7 @@ index 000000000..548adcf9b
 +  while (0)
 +
 +/* OpenHarmony library paths for RISC-V */
-+#ifdef TARGET_64BIT_DEFAULT
-+# define OHOS_ARCH_LIB_DIR "riscv64-linux-ohos"
-+#else
-+# define OHOS_ARCH_LIB_DIR "riscv32-linux-ohos"
-+#endif
++/* OpenHarmony library paths for RISC-V - use consistent naming */\n#define OHOS_ARCH_LIB_DIR \"riscv-linux-ohos\"
 +
 +/* Inject architecture-specific include directories via the CPP spec. */
 +#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
@@ -1337,7 +1303,7 @@ index 000000000..b45633a3c
 +MULTIARCH_DIRNAME := $(subst -linux-gnu,-linux-ohos,$(MULTIARCH_DIRNAME))
 +MULTILIB_OSDIRNAMES := $(subst -linux-gnu,-linux-ohos,$(MULTILIB_OSDIRNAMES))
 diff --git a/libgcc/config.host b/libgcc/config.host
-index 6a88ee5a2..2d390f801 100644
+index 6a88ee5a2..a4cd833c6 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -310,6 +310,11 @@ case ${host} in
@@ -1369,10 +1335,18 @@ index 6a88ee5a2..2d390f801 100644
  aarch64*-*-linux*)
  	extra_parts="$extra_parts crtfastmath.o"
  	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-@@ -811,6 +826,14 @@ i[34567]86-*-gnu*)
+@@ -811,6 +826,22 @@ i[34567]86-*-gnu*)
  	tm_file="${tm_file} i386/elf-lib.h"
  	md_unwind_header=i386/gnu-unwind.h
  	;;
++i[34567]86-*-linux-ohos*)
++	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
++	tmake_file="${tmake_file} i386/t-crtpc t-crtfm i386/t-crtstuff t-dfprules"
++	tmake_file="${tmake_file} t-ohos-crtstuff"
++	tm_file="${tm_file} i386/elf-lib.h"
++	md_unwind_header=i386/linux-unwind.h
++	tmake_file="${tmake_file} i386/t-heap-trampoline"
++	;;
 +x86_64-*-linux-ohos*)
 +	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
 +	tmake_file="${tmake_file} i386/t-crtpc t-crtfm i386/t-crtstuff t-dfprules"
@@ -1384,12 +1358,12 @@ index 6a88ee5a2..2d390f801 100644
  x86_64-*-linux*)
  	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
  	tmake_file="${tmake_file} i386/t-crtpc t-crtfm i386/t-crtstuff t-dfprules"
-@@ -1612,7 +1635,7 @@ i[34567]86-*-* | x86_64-*-*)
+@@ -1612,7 +1643,7 @@ i[34567]86-*-* | x86_64-*-*)
  esac
  
  case ${host} in
 -i[34567]86-*-linux* | x86_64-*-linux*)
-+i[34567]86-*-linux* | x86_64-*-linux* | x86_64-*-linux-ohos*)
++i[34567]86-*-linux* | i[34567]86-*-linux-ohos* | x86_64-*-linux* | x86_64-*-linux-ohos*)
  	# Provide backward binary compatibility for 64bit Linux/x86.
  	if test "${host_address}" = 64; then
  		tmake_file="${tmake_file} i386/${host_address}/t-softfp-compat"
