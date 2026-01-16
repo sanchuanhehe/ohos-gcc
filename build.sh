@@ -684,16 +684,14 @@ update_config_scripts() {
     
     msg "  Downloaded config.sub verified with OHOS support"
     
-    # Download config.guess - fail if download fails
+    # Download config.guess - optional, only warn if fails
     msg "  Downloading latest config.guess from GNU..."
     if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_guess_url}" -o "${tmp_config_guess}"; then
-        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
-        error "Failed to download config.guess from ${config_guess_url}"
-    fi
-    
-    if [ ! -s "${tmp_config_guess}" ]; then
-        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
-        error "Downloaded config.guess is empty"
+        msg "  Warning: Failed to download config.guess, will skip updating config.guess files"
+        rm -f "${tmp_config_guess}"
+    elif [ ! -s "${tmp_config_guess}" ]; then
+        msg "  Warning: Downloaded config.guess is empty, will skip updating config.guess files"
+        rm -f "${tmp_config_guess}"
     fi
     
     # Find all config.sub files and update them if needed
