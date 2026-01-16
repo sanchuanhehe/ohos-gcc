@@ -11,17 +11,17 @@ The implementation follows similar patterns to existing Linux targets,
 with architecture-specific headers defining dynamic linker paths, library
 directories, and compilation flags. Key features include:
 
-- OHOS-specific target recognition in config.sub
 - Multi-architecture support with proper triplet definitions
 - Dynamic linker paths following musl conventions
 - Architecture-specific library and header search paths
 - Thread support via POSIX threads (similar to other Linux targets)
 - Stack protection enabled by default for security
 
-ChangeLog:
+Note: OHOS target recognition in config.sub is already available in
+upstream GNU config. Use the latest config.sub from:
+https://git.savannah.gnu.org/cgit/config.git/plain/config.sub
 
-* config.sub: Add OHOS target recognition in OS validation
-and kernel-OS combinations for linux-ohos triplets.
+ChangeLog:
 
 gcc/ChangeLog:
 
@@ -65,7 +65,6 @@ libstdc++-v3/ChangeLog:
 * configure.host: Add linux-ohos case to use generic OS headers,
 consistent with musl-based Linux distributions.
 ---
- config.sub                        |   4 +-
  gcc/config.gcc                    |  84 ++++++++++++++++-
  gcc/config/aarch64/aarch64-ohos.h | 135 +++++++++++++++++++++++++++
  gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
@@ -81,7 +80,7 @@ consistent with musl-based Linux distributions.
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |  16 +++-
  libstdc++-v3/configure.host       |   3 +
- 16 files changed, 1092 insertions(+), 6 deletions(-)
+ 15 files changed, 1088 insertions(+), 2 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -94,28 +93,6 @@ consistent with musl-based Linux distributions.
  create mode 100644 gcc/config/t-ohos
  create mode 100644 libgcc/config/t-ohos-crtstuff
 
-diff --git a/config.sub b/config.sub
-index 38f3d037a..0a04e2db3 100755
---- a/config.sub
-+++ b/config.sub
-@@ -1749,7 +1749,7 @@ case $os in
- 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
- 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
- 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
--	     | fiwix* )
-+	     | fiwix* | ohos* )
- 		;;
- 	# This one is extra strict with allowed versions
- 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
-@@ -1767,7 +1767,7 @@ esac
- # (given a valid OS), if there is a kernel.
- case $kernel-$os in
- 	linux-gnu* | linux-dietlibc* | linux-android* | linux-newlib* \
--		   | linux-musl* | linux-relibc* | linux-uclibc* )
-+		   | linux-musl* | linux-relibc* | linux-uclibc* | linux-ohos* )
- 		;;
- 	uclinux-uclibc* )
- 		;;
 diff --git a/gcc/config.gcc b/gcc/config.gcc
 index 087aaa7be..0e94e6fab 100644
 --- a/gcc/config.gcc

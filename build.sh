@@ -543,11 +543,17 @@ prepare_binutils() {
         tar -xf "${tarball}" || error "Failed to extract binutils source"
     fi
 
+    # Update config.sub/config.guess to latest versions with OHOS support
+    # This replaces the need for config.sub patches
+    update_config_scripts "${BINUTILS_SOURCE_DIR}"
+
     msg "Applying binutils patches..."
     cd "${BINUTILS_SOURCE_DIR}"
 
     for patch in "${SCRIPT_DIR}"/binutils-patches/*.patch; do
         [ -f "${patch}" ] || continue
+        # Skip config.sub patches since we use auto-update
+        [[ "$(basename "${patch}")" == *config-sub* ]] && continue
         msg "Applying $(basename "${patch}")..."
         patch -p1 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
     done
@@ -651,6 +657,76 @@ apply_sysroot_patches() {
     fi
 }
 
+# Update config.sub and config.guess to latest versions from GNU config
+# This is needed for OHOS target support (already in upstream config.sub)
+update_config_scripts() {
+    local dir="$1"
+    local config_sub_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.sub"
+    local config_guess_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.guess"
+    local tmp_config_sub="/tmp/config.sub.$$"
+    local tmp_config_guess="/tmp/config.guess.$$"
+    local download_timeout=60
+    
+    msg "Updating config.sub and config.guess in ${dir}..."
+    
+    # Download config.sub - fail if download fails
+    msg "  Downloading latest config.sub from GNU..."
+    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_sub_url}" -o "${tmp_config_sub}"; then
+        rm -f "${tmp_config_sub}"
+        error "Failed to download config.sub from ${config_sub_url}"
+    fi
+    
+    # Verify downloaded file has proper OHOS support (linux-ohos pattern)
+    if ! grep -qE 'linux-ohos' "${tmp_config_sub}" 2>/dev/null; then
+        rm -f "${tmp_config_sub}"
+        error "Downloaded config.sub doesn't have OHOS support"
+    fi
+    
+    msg "  Downloaded config.sub verified with OHOS support"
+    
+    # Download config.guess - fail if download fails
+    msg "  Downloading latest config.guess from GNU..."
+    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_guess_url}" -o "${tmp_config_guess}"; then
+        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+        error "Failed to download config.guess from ${config_guess_url}"
+    fi
+    
+    if [ ! -s "${tmp_config_guess}" ]; then
+        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+        error "Downloaded config.guess is empty"
+    fi
+    
+    # Find all config.sub files and update them if needed
+    local updated=0
+    local skipped=0
+    while IFS= read -r config_file; do
+        # Check if this file already has proper OHOS support
+        if grep -qE 'linux-ohos' "${config_file}" 2>/dev/null; then
+            skipped=$((skipped + 1))
+            continue
+        fi
+        
+        # Update config.sub
+        cp "${tmp_config_sub}" "${config_file}"
+        chmod +x "${config_file}"
+        updated=$((updated + 1))
+        
+        # Update config.guess if it exists in the same directory
+        local config_dir guess_file
+        config_dir=$(dirname "${config_file}")
+        guess_file="${config_dir}/config.guess"
+        if [ -f "${guess_file}" ] && [ -s "${tmp_config_guess}" ]; then
+            cp "${tmp_config_guess}" "${guess_file}"
+            chmod +x "${guess_file}"
+        fi
+    done < <(find "${dir}" -name "config.sub" -type f 2>/dev/null)
+    
+    # Cleanup
+    rm -f "${tmp_config_sub}" "${tmp_config_guess}"
+    
+    msg "  Updated ${updated} config.sub files, ${skipped} already had OHOS support"
+}
+
 # Download GCC prerequisites (GMP, MPFR, MPC, ISL, gettext)
 download_prerequisites() {
     msg "Checking GCC prerequisites..."
@@ -737,6 +813,10 @@ prepare_gcc() {
 
     # Download prerequisites (GMP, MPFR, MPC, ISL, gettext)
     download_prerequisites
+
+    # Update config.sub/config.guess to latest versions with OHOS support
+    # This is done before applying patches since upstream config.sub now has OHOS support
+    update_config_scripts "${SOURCE_DIR}"
 
     # Apply patches
     msg "Applying GCC patches..."
