@@ -1,0 +1,40 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '*.sh'
+      - '.github/workflows/lint.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - '*.sh'
+      - '.github/workflows/lint.yml'
+  workflow_dispatch:
+
+jobs:
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@master
+        with:
+          severity: warning
+          # Only check project's own scripts, exclude GCC/binutils source directories
+          ignore_paths: >-
+            gcc-15.2.0
+            gcc-*
+            binutils-*
+            build-*
+            install
+            install-*
+            ndk
+          format: tty
+        env:
+          SHELLCHECK_OPTS: -e SC1091  # Ignore "not following sourced file" warnings

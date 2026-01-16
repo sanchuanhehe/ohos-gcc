@@ -17,7 +17,7 @@ example_aarch64() {
     echo "Target: aarch64-linux-ohos"
     echo "Prefix: ${HOME}/ohos-toolchain/aarch64"
     echo ""
-    read -p "Build this configuration? (y/N): " confirm
+    read -rp "Build this configuration? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         "${SCRIPT_DIR}/build.sh" \
             --target=aarch64-linux-ohos \
@@ -33,7 +33,7 @@ example_arm() {
     echo "Target: armhf-linux-ohos"
     echo "Prefix: ${HOME}/ohos-toolchain/arm"
     echo ""
-    read -p "Build this configuration? (y/N): " confirm
+    read -rp "Build this configuration? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         "${SCRIPT_DIR}/build.sh" \
             --target=armhf-linux-ohos \
@@ -49,7 +49,7 @@ example_x86_64() {
     echo "Target: x86_64-linux-ohos"
     echo "Prefix: ${HOME}/ohos-toolchain/x86_64"
     echo ""
-    read -p "Build this configuration? (y/N): " confirm
+    read -rp "Build this configuration? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         "${SCRIPT_DIR}/build.sh" \
             --target=x86_64-linux-ohos \
@@ -65,7 +65,7 @@ example_riscv64() {
     echo "Target: riscv64-linux-ohos"
     echo "Prefix: ${HOME}/ohos-toolchain/riscv64"
     echo ""
-    read -p "Build this configuration? (y/N): " confirm
+    read -rp "Build this configuration? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         "${SCRIPT_DIR}/build.sh" \
             --target=riscv64-linux-ohos \
@@ -86,7 +86,7 @@ example_all() {
     echo ""
     echo "Install prefix: ${HOME}/ohos-toolchain/<arch>"
     echo ""
-    read -p "Build all configurations? (y/N): " confirm
+    read -rp "Build all configurations? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         for target in aarch64-linux-ohos arm-linux-ohos x86_64-linux-ohos riscv64-linux-ohos; do
             arch="${target%%-*}"
@@ -113,10 +113,10 @@ example_custom() {
     echo "Example 6: Custom build with sysroot"
     echo "------------------------------------"
     echo ""
-    read -p "Target triplet (e.g., aarch64-linux-ohos): " target
-    read -p "Install prefix (e.g., /opt/ohos-gcc): " prefix
-    read -p "Sysroot path (leave empty if none): " sysroot
-    read -p "Languages (e.g., c,c++,fortran): " languages
+    read -rp "Target triplet (e.g., aarch64-linux-ohos): " target
+    read -rp "Install prefix (e.g., /opt/ohos-gcc): " prefix
+    read -rp "Sysroot path (leave empty if none): " sysroot
+    read -rp "Languages (e.g., c,c++,fortran): " languages
     
     [ -z "$target" ] && target="aarch64-linux-ohos"
     [ -z "$prefix" ] && prefix="${HOME}/ohos-toolchain"
@@ -129,7 +129,7 @@ example_custom() {
     echo "Command to execute:"
     echo "  ${cmd}"
     echo ""
-    read -p "Execute this command? (y/N): " confirm
+    read -rp "Execute this command? (y/N): " confirm
     if [ "$confirm" = "y" ] || [ "$confirm" = "Y" ]; then
         eval "${cmd}"
     fi
@@ -148,7 +148,7 @@ show_menu() {
     echo "  6) Custom build"
     echo "  q) Quit"
     echo ""
-    read -p "Enter your choice [1-6,q]: " choice
+    read -rp "Enter your choice [1-6,q]: " choice
     
     case "$choice" in
         1) example_aarch64 ;;

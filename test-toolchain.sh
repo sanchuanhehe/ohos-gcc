@@ -47,6 +47,7 @@ info "Target: ${TARGET}"
 echo ""
 
 # Extract architecture from target
+# shellcheck disable=SC2034  # Reserved for future use
 ARCH="${TARGET%%-*}"
 
 # Test 1: Check if toolchain directory exists
@@ -103,7 +104,7 @@ done
 # Test 7: Test compilation - C program
 info "Testing C compilation..."
 TEMP_DIR=$(mktemp -d)
-trap "rm -rf ${TEMP_DIR}" EXIT
+trap 'rm -rf "${TEMP_DIR}"' EXIT
 
 cat > "${TEMP_DIR}/test.c" << 'EOF'
 #include <stdio.h>
@@ -143,6 +144,7 @@ fi
 info "Checking library directories..."
 LIB_DIR="${TOOLCHAIN_PREFIX}/lib/gcc/${TARGET}"
 if [ -d "${LIB_DIR}" ]; then
+    # shellcheck disable=SC2012  # ls is fine here for simple version listing
     GCC_VERSION=$(ls "${LIB_DIR}" | head -1)
     if [ -n "${GCC_VERSION}" ]; then
         info "GCC version: ${GCC_VERSION}"
@@ -155,7 +157,7 @@ fi
 # Test 10: Check include directories
 info "Checking include directories..."
 INCLUDE_DIR="${TOOLCHAIN_PREFIX}/lib/gcc/${TARGET}/${GCC_VERSION:-*}/include"
-if ls ${INCLUDE_DIR} >/dev/null 2>&1; then
+if ls "${INCLUDE_DIR}" >/dev/null 2>&1; then
     success "Include directory found"
 else
     warning "Include directory not found"

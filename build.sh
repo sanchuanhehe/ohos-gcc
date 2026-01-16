@@ -20,6 +20,7 @@ export PATH="/bin:/usr/bin:/usr/local/bin:${PATH}"
 
 # GCC Version
 GCC_VERSION="15.2.0"
+# shellcheck disable=SC2034  # Reserved for future use
 GCC_MAJOR_VERSION="${GCC_VERSION%%.*}"
 
 # Build directories
@@ -598,6 +599,7 @@ build_binutils() {
     fi
 
     # Run configure and build in a subshell to avoid polluting parent environment
+    # shellcheck disable=SC2030,SC2031
     (
         cd "${BINUTILS_BUILD_DIR}"
         
@@ -848,6 +850,7 @@ configure_gcc() {
     # Run configure in a subshell to avoid polluting the parent shell with
     # exported environment variables (CC, CXX, AR, PATH, cache variables, etc.)
     # All environment setup is done inside this subshell.
+    # shellcheck disable=SC2030,SC2031
     (
         # ================================================================
         # Setup build environment based on build type (inside subshell)
@@ -915,6 +918,7 @@ configure_gcc() {
         # ================================================================
         # Run configure
         # ================================================================
+        # shellcheck disable=SC2086  # Intentional word splitting for configure flags
         "${SOURCE_DIR}/configure" \
             --prefix="${INSTALL_PREFIX}" \
             --mandir="${INSTALL_PREFIX}/share/man" \
@@ -964,6 +968,7 @@ build_gcc() {
     # We also need to ensure stage 1 tools are in PATH for sub-configures.
     # Use full path to avoid picking up wrong gcc from install prefix.
     if is_canadian_cross; then
+        # shellcheck disable=SC2031  # PATH usage here is intentional and not related to subshell modifications
         PATH="${STAGE1_PREFIX}/bin:${PATH}" make -j"${JOBS}" \
             GCC_FOR_TARGET="${STAGE1_PREFIX}/bin/${CTARGET}-gcc" \
             || error "Build failed"
@@ -981,6 +986,7 @@ install_gcc() {
     # Also ensure stage 1 tools are in PATH.
     # Use full path to avoid picking up wrong gcc from install prefix.
     if is_canadian_cross; then
+        # shellcheck disable=SC2031  # PATH usage here is intentional and not related to subshell modifications
         PATH="${STAGE1_PREFIX}/bin:${PATH}" make install DESTDIR="${DESTDIR:-}" \
             GCC_FOR_TARGET="${STAGE1_PREFIX}/bin/${CTARGET}-gcc" \
             || error "Installation failed"
@@ -1177,8 +1183,10 @@ if [ -z "${CROSS_COMPILE:-}" ]; then
 fi
 export CROSS_COMPILE
 
+# shellcheck disable=SC2034  # Reserved for future use
 IS_NATIVE_BUILD=0
 if [ "${CHOST}" = "${CTARGET}" ]; then
+    # shellcheck disable=SC2034
     IS_NATIVE_BUILD=1
 fi
 
