@@ -677,8 +677,8 @@ update_config_scripts() {
         return 0
     fi
     
-    # Verify downloaded file has proper OHOS support (linux-ohos* pattern)
-    if ! grep -qE 'linux-ohos\*' "${tmp_config_sub}" 2>/dev/null; then
+    # Verify downloaded file has proper OHOS support (linux-ohos pattern)
+    if ! grep -qE 'linux-ohos' "${tmp_config_sub}" 2>/dev/null; then
         msg "  Warning: Downloaded config.sub doesn't have OHOS support, keeping originals"
         rm -f "${tmp_config_sub}"
         return 0
@@ -694,7 +694,7 @@ update_config_scripts() {
     local skipped=0
     while IFS= read -r config_file; do
         # Check if this file already has proper OHOS support
-        if grep -qE 'linux-ohos\*' "${config_file}" 2>/dev/null; then
+        if grep -qE 'linux-ohos' "${config_file}" 2>/dev/null; then
             skipped=$((skipped + 1))
             continue
         fi
