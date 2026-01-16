@@ -1,6 +1,6 @@
-From b57200dd3150b124e534bb02713646242ec4f90b Mon Sep 17 00:00:00 2001
+From 2dfc5874c275db49d330528b4f67a593cc95b0e8 Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
-Date: Tue, 18 Nov 2025 21:12:22 +0800
+Date: Fri, 16 Jan 2026 14:07:08 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
 
 This patch adds comprehensive support for OpenHarmony OS across multiple
@@ -20,78 +20,90 @@ directories, and compilation flags. Key features include:
 
 ChangeLog:
 
-	* config.sub: Add OHOS target recognition in OS validation
-	and kernel-OS combinations for linux-ohos triplets.
+    * config.sub: Add OHOS target recognition in OS validation
+    and kernel-OS combinations for linux-ohos triplets.
 
 gcc/ChangeLog:
 
-	* config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
-	riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
-	OHOS targets. Add OHOS to indirect function support list.
-	* system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
-	systems to prevent build errors on musl-based targets.
-	* config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
-	configuration with LP64 ABI support and Cortex-A53 errata fixes.
-	* config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
-	fragment with multilib configuration.
-	* config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
-	with EABI support and float ABI variants (soft/hard float).
-	* config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
-	* config/i386/ohos.h: New file. i386-specific OHOS configuration
-	for 32-bit x86 targets.
-	* config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
-	for 64-bit x86 targets.
-	* config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
-	supporting both big-endian and little-endian variants.
-	* config/ohos-paths.h: New file. OHOS filesystem layout definitions
-	including standard SDK paths for headers and libraries.
-	* config/ohos.h: New file. Generic OHOS configuration with musl libc
-	integration, security features, and library specifications.
-	* config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
-	configuration with relaxation support.
-	* config/t-ohos: New file. OHOS-specific makefile fragment adjusting
-	multilib directory names from linux-gnu to linux-ohos.
+    * config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
+    riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
+    OHOS targets. Add OHOS to indirect function support list.
+    * system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
+    systems to prevent build errors on musl-based targets.
+    * config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
+    configuration with LP64 ABI support and Cortex-A53 errata fixes.
+    * config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
+    fragment with multilib configuration.
+    * config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
+    with EABI support and float ABI variants (soft/hard float).
+    * config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
+    * config/i386/ohos.h: New file. i386-specific OHOS configuration
+    for 32-bit x86 targets.
+    * config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
+    for 64-bit x86 targets.
+    * config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
+    supporting both big-endian and little-endian variants.
+    * config/ohos-paths.h: New file. OHOS filesystem layout definitions
+    including standard SDK paths for headers and libraries.
+    * config/ohos.h: New file. Generic OHOS configuration with musl libc
+    integration, security features, and library specifications.
+    * config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
+    configuration with relaxation support.
+    * config/t-ohos: New file. OHOS-specific makefile fragment adjusting
+    multilib directory names from linux-gnu to linux-ohos.
 
 libcpp/ChangeLog:
 
-	* system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
-	systems to prevent preprocessor errors when cross-compiling.
+    * system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
+    systems to prevent preprocessor errors when cross-compiling.
 
 libgcc/ChangeLog:
 
-	* config.host: Add OHOS target configurations for aarch64, arm,
-	i386/x86_64, riscv, and mips architectures with appropriate
-	unwind and atomic support.
-	* config/t-ohos-crtstuff: New file. OHOS-specific CRT object
-	compilation flags.
-	* gthr-posix.h: Exclude pthread_cancel on OHOS targets
-	(similar to Bionic) as it's not supported by musl libc in OHOS.
+    * config.host: Add OHOS target configurations for aarch64, arm,
+    i386/x86_64, riscv, and mips architectures with appropriate
+    unwind and atomic support.
+    * config/t-ohos-crtstuff: New file. OHOS-specific CRT object
+    compilation flags.
+    * gthr-posix.h: Exclude pthread_cancel on OHOS targets
+    (similar to Bionic) as it is not supported by musl libc in OHOS.
 
 libstdc++-v3/ChangeLog:
 
-* configure.host: Add linux-ohos case to use generic OS headers,
-consistent with musl-based Linux distributions.
+    * configure.host: Add linux-ohos case to use generic OS headers,
+    consistent with musl-based Linux distributions.
 ---
  config.sub                        |   4 +-
- gcc/config.gcc                    |  87 +++++++++++++++++++-
- gcc/config/aarch64/aarch64-ohos.h | 138 +++++++++++++++++++++++++++++++
- gcc/config/aarch64/t-aarch64-ohos |  28 +++++++
- gcc/config/arm/arm-ohos.h         | 125 ++++++++++++++++++++++++++++
- gcc/config/arm/t-arm-ohos         |  28 +++++++
- gcc/config/i386/ohos.h            | 111 +++++++++++++++++++++++++
- gcc/config/i386/ohos64.h          | 111 +++++++++++++++++++++++++
- gcc/config/mips/mips-ohos.h       | 134 ++++++++++++++++++++++++++++++
- gcc/config/ohos-paths.h           |  72 ++++++++++++++++
- gcc/config/ohos.h                 | 152 ++++++++++++++++++++++++++++++++++
- gcc/config/riscv/riscv-ohos.h     | 125 ++++++++++++++++++++++++++++
+ gcc/config.gcc                    |  87 ++++++++++++++++-
+ gcc/config/aarch64/aarch64-ohos.h | 138 +++++++++++++++++++++++++++
+ gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
+ gcc/config/arm/arm-ohos.h         | 125 ++++++++++++++++++++++++
+ gcc/config/arm/t-arm-ohos         |  28 ++++++
+ gcc/config/i386/ohos.h            | 111 ++++++++++++++++++++++
+ gcc/config/i386/ohos64.h          | 111 ++++++++++++++++++++++
+ gcc/config/mips/mips-ohos.h       | 134 ++++++++++++++++++++++++++
+ gcc/config/ohos-paths.h           |  72 ++++++++++++++
+ gcc/config/ohos.h                 | 152 ++++++++++++++++++++++++++++++
+ gcc/config/riscv/riscv-ohos.h     | 125 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
  gcc/system.h                      |   6 ++
- libcpp/system.h                   |   5 ++
- libgcc/config.host                | 169 +++++++++++++++++++++++++++++++++++++-
+ libcpp/system.h                   |   5 +
+ libgcc/config.host                |  25 ++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 19 files changed, 1302 insertions(+), 6 deletions(-)
+ 19 files changed, 1158 insertions(+), 6 deletions(-)
+ create mode 100644 gcc/config/aarch64/aarch64-ohos.h
+ create mode 100644 gcc/config/aarch64/t-aarch64-ohos
+ create mode 100644 gcc/config/arm/arm-ohos.h
+ create mode 100644 gcc/config/arm/t-arm-ohos
+ create mode 100644 gcc/config/i386/ohos.h
+ create mode 100644 gcc/config/i386/ohos64.h
+ create mode 100644 gcc/config/mips/mips-ohos.h
+ create mode 100644 gcc/config/ohos-paths.h
+ create mode 100644 gcc/config/ohos.h
+ create mode 100644 gcc/config/riscv/riscv-ohos.h
+ create mode 100644 gcc/config/t-ohos
+ create mode 100644 libgcc/config/t-ohos-crtstuff
 
 diff --git a/config.sub b/config.sub
 index 38f3d037a..0a04e2db3 100755
@@ -1367,7 +1379,7 @@ index cfc9ddaa3..8d2d6d73d 100644
  # include <stddef.h>
  #endif
 diff --git a/libgcc/config.host b/libgcc/config.host
-index 6a88ee5a2..82dc6f9be 100644
+index 6a88ee5a2..2d390f801 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -310,6 +310,11 @@ case ${host} in
@@ -1382,7 +1394,7 @@ index 6a88ee5a2..82dc6f9be 100644
  *-*-linux* | frv-*-*linux* | *-*-kfreebsd*-gnu | *-*-gnu* | *-*-kopensolaris*-gnu | *-*-uclinuxfdpiceabi)
    tmake_file="$tmake_file t-crtstuff-pic t-libgcc-pic t-eh-dw2-dip t-slibgcc t-slibgcc-gld t-slibgcc-elf-ver t-linux"
    extra_parts="crtbegin.o crtbeginS.o crtbeginT.o crtend.o crtendS.o"
-@@ -435,6 +440,160 @@ aarch64*-*-fuchsia*)
+@@ -435,6 +440,16 @@ aarch64*-*-fuchsia*)
  	tmake_file="${tmake_file} ${cpu_type}/t-softfp t-softfp"
  	tmake_file="${tmake_file} t-dfprules"
  	;;
@@ -1392,158 +1404,14 @@ index 6a88ee5a2..82dc6f9be 100644
 +	md_unwind_header=aarch64/linux-unwind.h
 +	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
 +	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
++	tmake_file="${tmake_file} ${cpu_type}/t-softfp t-softfp"
 +	tmake_file="${tmake_file} t-dfprules"
 +	tmake_file="${tmake_file} t-ohos-crtstuff"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
-+	;;
-+aarch64*-*-linux-ohos*)
-+	extra_parts="$extra_parts crtfastmath.o"
-+	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-+	md_unwind_header=aarch64/linux-unwind.h
-+	tmake_file="${tmake_file} ${cpu_type}/t-aarch64"
-+	tmake_file="${tmake_file} ${cpu_type}/t-lse t-slibgcc-libgcc"
-+	tmake_file="${tmake_file} t-softfp ${cpu_type}/t-softfp"
-+	tmake_file="${tmake_file} t-dfprules"
 +	;;
  aarch64*-*-linux*)
  	extra_parts="$extra_parts crtfastmath.o"
  	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-@@ -811,6 +970,14 @@ i[34567]86-*-gnu*)
+@@ -811,6 +826,14 @@ i[34567]86-*-gnu*)
  	tm_file="${tm_file} i386/elf-lib.h"
  	md_unwind_header=i386/gnu-unwind.h
  	;;
@@ -1558,7 +1426,7 @@ index 6a88ee5a2..82dc6f9be 100644
  x86_64-*-linux*)
  	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
  	tmake_file="${tmake_file} i386/t-crtpc t-crtfm i386/t-crtstuff t-dfprules"
-@@ -1612,7 +1779,7 @@ i[34567]86-*-* | x86_64-*-*)
+@@ -1612,7 +1635,7 @@ i[34567]86-*-* | x86_64-*-*)
  esac
  
  case ${host} in
@@ -1613,3 +1481,6 @@ index 253e5a9ad..b2af509fb 100644
    gnu* | linux* | kfreebsd*-gnu | uclinux*)
      if [ "$uclibc" = "yes" ]; then
        os_include_dir="os/uclibc"
+-- 
+2.34.1
+
