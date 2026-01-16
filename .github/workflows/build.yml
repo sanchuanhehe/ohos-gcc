@@ -393,7 +393,6 @@ jobs:
           
           # Run build with verbose output on failure
           if ! ./build.sh \
-            --build=x86_64-linux-gnu \
             --host=${{ matrix.target }} \
             --target=${{ matrix.target }} \
             --stage1=./install \
