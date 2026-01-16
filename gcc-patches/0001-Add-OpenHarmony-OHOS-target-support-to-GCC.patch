@@ -1,4 +1,4 @@
-From 3d5cd6c3620bbcbd4465b028027989cc87fd7c3f Mon Sep 17 00:00:00 2001
+From e1310f0df0b8147edefacddf150f61f4825998cf Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
 Date: Fri, 16 Jan 2026 20:40:14 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
@@ -38,7 +38,7 @@ with EABI support and float ABI variants (soft/hard float).
 * config/i386/ohos.h: New file. i386-specific OHOS configuration
 for 32-bit x86 targets.
 * config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
-for 64-bit x86 targets.
+for 64-bit x86 targets with multilib support (32/64-bit).
 * config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
 supporting both big-endian and little-endian variants.
 * config/ohos.h: New file. Generic OHOS configuration with musl libc
@@ -55,8 +55,10 @@ i386/x86_64, riscv, and mips architectures with appropriate
 unwind and atomic support.
 * config/t-ohos-crtstuff: New file. OHOS-specific CRT object
 compilation flags.
-* gthr-posix.h: Exclude pthread_cancel on OHOS targets
-(similar to Bionic) as it is not supported by musl libc in OHOS.
+* gthr-posix.h (__GTHREAD_HAS_PTHREAD_CANCEL): New feature macro.
+Controls pthread_cancel availability. Set to 0 for platforms without
+pthread_cancel (Bionic, OHOS musl). Use this macro instead of
+platform-specific checks throughout the file.
 
 libstdc++-v3/ChangeLog:
 
@@ -65,21 +67,21 @@ consistent with musl-based Linux distributions.
 ---
  config.sub                        |   4 +-
  gcc/config.gcc                    |  84 ++++++++++++++++-
- gcc/config/aarch64/aarch64-ohos.h | 138 ++++++++++++++++++++++++++++
+ gcc/config/aarch64/aarch64-ohos.h | 135 +++++++++++++++++++++++++++
  gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
- gcc/config/arm/arm-ohos.h         | 121 ++++++++++++++++++++++++
+ gcc/config/arm/arm-ohos.h         | 118 ++++++++++++++++++++++++
  gcc/config/arm/t-arm-ohos         |  28 ++++++
  gcc/config/i386/ohos.h            | 115 +++++++++++++++++++++++
- gcc/config/i386/ohos64.h          | 117 +++++++++++++++++++++++
- gcc/config/mips/mips-ohos.h       | 129 ++++++++++++++++++++++++++
+ gcc/config/i386/ohos64.h          | 122 ++++++++++++++++++++++++
+ gcc/config/mips/mips-ohos.h       | 125 +++++++++++++++++++++++++
  gcc/config/ohos.h                 | 148 ++++++++++++++++++++++++++++++
- gcc/config/riscv/riscv-ohos.h     | 118 ++++++++++++++++++++++++
+ gcc/config/riscv/riscv-ohos.h     | 114 +++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
  libgcc/config.host                |  52 ++++++++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
- libgcc/gthr-posix.h               |   4 +-
+ libgcc/gthr-posix.h               |  16 +++-
  libstdc++-v3/configure.host       |   3 +
- 16 files changed, 1089 insertions(+), 6 deletions(-)
+ 16 files changed, 1092 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -239,10 +241,10 @@ index 087aaa7be..0e94e6fab 100644
  			  echo "Unsupported target ${target}." 1>&2
 diff --git a/gcc/config/aarch64/aarch64-ohos.h b/gcc/config/aarch64/aarch64-ohos.h
 new file mode 100644
-index 000000000..94b17a59c
+index 000000000..f4800dc28
 --- /dev/null
 +++ b/gcc/config/aarch64/aarch64-ohos.h
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,135 @@
 +/* Definitions for AArch64 running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -294,9 +296,6 @@ index 000000000..94b17a59c
 +    {						\
 +      GNU_USER_TARGET_OS_CPP_BUILTINS();	\
 +      OHOS_BASE_OS_CPP_BUILTINS();		\
-+      builtin_define ("__aarch64__");		\
-+      builtin_assert ("cpu=aarch64");		\
-+      builtin_assert ("machine=aarch64");	\
 +    }						\
 +  while (0)
 +
@@ -417,10 +416,10 @@ index 000000000..ed0fb53ee
 +MULTILIB_OSDIRNAMES += mabi.ilp32=../libilp32$(call if_multiarch,:aarch64$(AARCH_BE)-linux-ohos_ilp32)
 diff --git a/gcc/config/arm/arm-ohos.h b/gcc/config/arm/arm-ohos.h
 new file mode 100644
-index 000000000..ac3127b29
+index 000000000..923e16c98
 --- /dev/null
 +++ b/gcc/config/arm/arm-ohos.h
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,118 @@
 +/* Definitions for ARM running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -462,9 +461,6 @@ index 000000000..ac3127b29
 +    {						\
 +      GNU_USER_TARGET_OS_CPP_BUILTINS();	\
 +      OHOS_BASE_OS_CPP_BUILTINS();		\
-+      builtin_define ("__arm__");		\
-+      builtin_assert ("cpu=arm");		\
-+      builtin_assert ("machine=arm");		\
 +    }						\
 +  while (0)
 +
@@ -699,10 +695,10 @@ index 000000000..c5e737055
 +#endif /* GCC_I386_OHOS_H */
 diff --git a/gcc/config/i386/ohos64.h b/gcc/config/i386/ohos64.h
 new file mode 100644
-index 000000000..a09bd2603
+index 000000000..e290d1d8b
 --- /dev/null
 +++ b/gcc/config/i386/ohos64.h
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,122 @@
 +/* Definitions for x86_64 running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -725,8 +721,13 @@ index 000000000..a09bd2603
 +#ifndef GCC_I386_OHOS64_H
 +#define GCC_I386_OHOS64_H
 +
-+/* Define architecture-specific dynamic linker - match LLVM getDynamicLinker() */
-+#define OHOS_ARCH_DYNAMIC_LINKER "/lib/ld-musl-x86_64.so.1"
++/* Define architecture-specific dynamic linkers for multilib support.
++   x86_64 supports both 32-bit and 64-bit binaries (multilib).  */
++#define OHOS_DYNAMIC_LINKER32 "/lib/ld-musl-i386.so.1"
++#define OHOS_DYNAMIC_LINKER64 "/lib/ld-musl-x86_64.so.1"
++
++/* Default OHOS_ARCH_DYNAMIC_LINKER for 64-bit */
++#define OHOS_ARCH_DYNAMIC_LINKER OHOS_DYNAMIC_LINKER64
 +
 +
 +/* Include the generic OpenHarmony configuration */
@@ -801,16 +802,16 @@ index 000000000..a09bd2603
 +#define LIB_SPEC GNU_USER_TARGET_LIB_SPEC
 +
 +#undef LINK_SPEC
-+/* Define the link spec for x86 OpenHarmony */
++/* Define the link spec for x86_64 OpenHarmony with multilib support */
 +#define LINK_SPEC						\
-+  "%{" SPEC_32 ":-m elf_i386} "				\
++  "%{" SPEC_32 ":-m elf_i386} "					\
 +  "%{" SPEC_64 ":-m elf_x86_64} "				\
 +  "%{shared:-shared} "						\
 +  "%{!shared: "							\
 +    "%{!static: "						\
 +      "%{rdynamic:-export-dynamic} "				\
-+      "%{" SPEC_32 ":-dynamic-linker " OHOS_DYNAMIC_LINKER "} "	\
-+      "%{" SPEC_64 ":-dynamic-linker " OHOS_DYNAMIC_LINKER "}} "	\
++      "%{" SPEC_32 ":-dynamic-linker " OHOS_DYNAMIC_LINKER32 "} "	\
++      "%{" SPEC_64 ":-dynamic-linker " OHOS_DYNAMIC_LINKER64 "}} "	\
 +    "%{static:-static}} "					\
 +  "-L%R/usr/lib " 						\
 +  "-L%R/lib "
@@ -822,10 +823,10 @@ index 000000000..a09bd2603
 +#endif /* GCC_I386_OHOS64_H */
 diff --git a/gcc/config/mips/mips-ohos.h b/gcc/config/mips/mips-ohos.h
 new file mode 100644
-index 000000000..cc0cd38ea
+index 000000000..4fb771025
 --- /dev/null
 +++ b/gcc/config/mips/mips-ohos.h
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,125 @@
 +/* Definitions for MIPS running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -875,10 +876,6 @@ index 000000000..cc0cd38ea
 +      /* Include base GNU and OHOS defines */ \
 +      GNU_USER_TARGET_OS_CPP_BUILTINS ();	\
 +      OHOS_BASE_OS_CPP_BUILTINS ();		\
-+      /* MIPS-specific defines */ \
-+      builtin_define ("__mips__");		\
-+      builtin_assert ("cpu=mips");		\
-+      builtin_assert ("machine=mips");		\
 +    }						\
 +  while (0)
 +
@@ -1111,10 +1108,10 @@ index 000000000..78b72bc7c
 +  "This combination is fully supported and widely used in production."
 diff --git a/gcc/config/riscv/riscv-ohos.h b/gcc/config/riscv/riscv-ohos.h
 new file mode 100644
-index 000000000..8d14f13b4
+index 000000000..79cb36c54
 --- /dev/null
 +++ b/gcc/config/riscv/riscv-ohos.h
-@@ -0,0 +1,118 @@
+@@ -0,0 +1,114 @@
 +/* Definitions for RISC-V running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -1154,10 +1151,6 @@ index 000000000..8d14f13b4
 +      /* Include base GNU and OHOS defines */ \
 +      GNU_USER_TARGET_OS_CPP_BUILTINS ();	\
 +      OHOS_BASE_OS_CPP_BUILTINS();		\
-+      /* RISC-V specific defines */ \
-+      builtin_define ("__riscv");		\
-+      builtin_assert ("cpu=riscv");		\
-+      builtin_assert ("machine=riscv");		\
 +    }						\
 +  while (0)
 +
@@ -1357,24 +1350,43 @@ index 000000000..8baa33873
 +CRTSTUFF_T_CFLAGS = $(PICFLAG)
 +CRTSTUFF_T_CFLAGS_S = $(CRTSTUFF_T_CFLAGS) $(PICFLAG)
 diff --git a/libgcc/gthr-posix.h b/libgcc/gthr-posix.h
-index eeb84f32d..1b5cd8bc5 100644
+index eeb84f32d..124d614f1 100644
 --- a/libgcc/gthr-posix.h
 +++ b/libgcc/gthr-posix.h
-@@ -129,7 +129,7 @@ __gthrw(pthread_join)
+@@ -90,6 +90,17 @@ typedef struct timespec __gthread_time_t;
+ #define __GTHREAD_COND_INIT PTHREAD_COND_INITIALIZER
+ #define __GTHREAD_TIME_INIT {0,0}
+ 
++/* pthread_cancel is not available on some platforms (e.g., Android Bionic,
++   OpenHarmony musl).  Define __GTHREAD_HAS_PTHREAD_CANCEL to 0 for such
++   platforms.  Default is 1 (available) for most POSIX systems.  */
++#ifndef __GTHREAD_HAS_PTHREAD_CANCEL
++# if defined(__BIONIC__) || defined(__OHOS__)
++#  define __GTHREAD_HAS_PTHREAD_CANCEL 0
++# else
++#  define __GTHREAD_HAS_PTHREAD_CANCEL 1
++# endif
++#endif
++
+ #ifdef _GTHREAD_USE_MUTEX_INIT_FUNC
+ # undef __GTHREAD_MUTEX_INIT
+ #endif
+@@ -129,7 +140,7 @@ __gthrw(pthread_join)
  __gthrw(pthread_equal)
  __gthrw(pthread_self)
  __gthrw(pthread_detach)
 -#ifndef __BIONIC__
-+#if !defined(__BIONIC__) && !defined(__OHOS__)
++#if __GTHREAD_HAS_PTHREAD_CANCEL
  __gthrw(pthread_cancel)
  #endif
  __gthrw(sched_yield)
-@@ -275,7 +275,7 @@ __gthrw2(__gthrw_(__pthread_key_create),
+@@ -275,7 +286,8 @@ __gthrw2(__gthrw_(__pthread_key_create),
  	 __pthread_key_create,
  	 pthread_key_create)
  # define GTHR_ACTIVE_PROXY	__gthrw_(__pthread_key_create)
 -#elif defined (__BIONIC__)
-+#elif defined (__BIONIC__) || defined (__OHOS__)
++#elif !__GTHREAD_HAS_PTHREAD_CANCEL
++/* pthread_cancel is not available, use pthread_create as proxy instead.  */
  # define GTHR_ACTIVE_PROXY	__gthrw_(pthread_create)
  #else
  # define GTHR_ACTIVE_PROXY	__gthrw_(pthread_cancel)
