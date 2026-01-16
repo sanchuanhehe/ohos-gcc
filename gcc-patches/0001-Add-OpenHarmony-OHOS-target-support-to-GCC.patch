@@ -1,6 +1,6 @@
-From 69554267b0c31dbe83b579299edffa0c37db1c67 Mon Sep 17 00:00:00 2001
+From 105f05fb97d65e107257321ab9041fa6f858b1c5 Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
-Date: Fri, 16 Jan 2026 20:24:20 +0800
+Date: Fri, 16 Jan 2026 20:40:14 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
 
 This patch adds comprehensive support for OpenHarmony OS across multiple
@@ -20,50 +20,50 @@ directories, and compilation flags. Key features include:
 
 ChangeLog:
 
-    * config.sub: Add OHOS target recognition in OS validation
-    and kernel-OS combinations for linux-ohos triplets.
+	* config.sub: Add OHOS target recognition in OS validation
+	and kernel-OS combinations for linux-ohos triplets.
 
 gcc/ChangeLog:
 
-    * config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
-    riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
-    OHOS targets. Add OHOS to indirect function support list.
-    * config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
-    configuration with LP64 ABI support and Cortex-A53 errata fixes.
-    * config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
-    fragment with multilib configuration.
-    * config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
-    with EABI support and float ABI variants (soft/hard float).
-    * config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
-    * config/i386/ohos.h: New file. i386-specific OHOS configuration
-    for 32-bit x86 targets.
-    * config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
-    for 64-bit x86 targets.
-    * config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
-    supporting both big-endian and little-endian variants.
-    * config/ohos-paths.h: New file. OHOS filesystem layout definitions
-    including standard SDK paths for headers and libraries.
-    * config/ohos.h: New file. Generic OHOS configuration with musl libc
-    integration, security features, and library specifications.
-    * config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
-    configuration with relaxation support.
-    * config/t-ohos: New file. OHOS-specific makefile fragment adjusting
-    multilib directory names from linux-gnu to linux-ohos.
+	* config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
+	riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
+	OHOS targets. Add OHOS to indirect function support list.
+	* config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
+	configuration with LP64 ABI support and Cortex-A53 errata fixes.
+	* config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
+	fragment with multilib configuration.
+	* config/arm/arm-ohos.h: New file. ARM-specific OHOS configuration
+	with EABI support and float ABI variants (soft/hard float).
+	* config/arm/t-arm-ohos: New file. ARM OHOS makefile fragment.
+	* config/i386/ohos.h: New file. i386-specific OHOS configuration
+	for 32-bit x86 targets.
+	* config/i386/ohos64.h: New file. x86_64-specific OHOS configuration
+	for 64-bit x86 targets.
+	* config/mips/mips-ohos.h: New file. MIPS-specific OHOS configuration
+	supporting both big-endian and little-endian variants.
+	* config/ohos-paths.h: New file. OHOS filesystem layout definitions
+	including standard SDK paths for headers and libraries.
+	* config/ohos.h: New file. Generic OHOS configuration with musl libc
+	integration, security features, and library specifications.
+	* config/riscv/riscv-ohos.h: New file. RISC-V-specific OHOS
+	configuration with relaxation support.
+	* config/t-ohos: New file. OHOS-specific makefile fragment adjusting
+	multilib directory names from linux-gnu to linux-ohos.
 
 libgcc/ChangeLog:
 
-    * config.host: Add OHOS target configurations for aarch64, arm,
-    i386/x86_64, riscv, and mips architectures with appropriate
-    unwind and atomic support.
-    * config/t-ohos-crtstuff: New file. OHOS-specific CRT object
-    compilation flags.
-    * gthr-posix.h: Exclude pthread_cancel on OHOS targets
-    (similar to Bionic) as it is not supported by musl libc in OHOS.
+	* config.host: Add OHOS target configurations for aarch64, arm,
+	i386/x86_64, riscv, and mips architectures with appropriate
+	unwind and atomic support.
+	* config/t-ohos-crtstuff: New file. OHOS-specific CRT object
+	compilation flags.
+	* gthr-posix.h: Exclude pthread_cancel on OHOS targets
+	(similar to Bionic) as it is not supported by musl libc in OHOS.
 
 libstdc++-v3/ChangeLog:
 
-    * configure.host: Add linux-ohos case to use generic OS headers,
-    consistent with musl-based Linux distributions.
+	* configure.host: Add linux-ohos case to use generic OS headers,
+	consistent with musl-based Linux distributions.
 ---
  config.sub                        |   4 +-
  gcc/config.gcc                    |  84 ++++++++++++++++-
@@ -78,11 +78,11 @@ libstdc++-v3/ChangeLog:
  gcc/config/ohos.h                 | 144 ++++++++++++++++++++++++++++++
  gcc/config/riscv/riscv-ohos.h     | 118 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
- libgcc/config.host                |  33 ++++++-
+ libgcc/config.host                |  52 ++++++++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 17 files changed, 1121 insertions(+), 6 deletions(-)
+ 17 files changed, 1140 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -1172,7 +1172,7 @@ index 000000000..cae0fe6e0
 +  "This combination is fully supported and widely used in production."
 diff --git a/gcc/config/riscv/riscv-ohos.h b/gcc/config/riscv/riscv-ohos.h
 new file mode 100644
-index 000000000..58874849c
+index 000000000..52c89f06e
 --- /dev/null
 +++ b/gcc/config/riscv/riscv-ohos.h
 @@ -0,0 +1,118 @@
@@ -1222,8 +1222,8 @@ index 000000000..58874849c
 +    }						\
 +  while (0)
 +
-+/* OpenHarmony library paths for RISC-V */
-+/* OpenHarmony library paths for RISC-V - use consistent naming */\n#define OHOS_ARCH_LIB_DIR \"riscv-linux-ohos\"
++/* OpenHarmony library paths for RISC-V - use consistent naming */
++#define OHOS_ARCH_LIB_DIR "riscv-linux-ohos"
 +
 +/* Inject architecture-specific include directories via the CPP spec. */
 +#define OHOS_MULTIARCH_CPP_SPEC OHOS_MULTIARCH_INCLUDE_SPEC(OHOS_ARCH_LIB_DIR)
@@ -1303,7 +1303,7 @@ index 000000000..b45633a3c
 +MULTIARCH_DIRNAME := $(subst -linux-gnu,-linux-ohos,$(MULTIARCH_DIRNAME))
 +MULTILIB_OSDIRNAMES := $(subst -linux-gnu,-linux-ohos,$(MULTILIB_OSDIRNAMES))
 diff --git a/libgcc/config.host b/libgcc/config.host
-index 6a88ee5a2..a4cd833c6 100644
+index 6a88ee5a2..869063b9c 100644
 --- a/libgcc/config.host
 +++ b/libgcc/config.host
 @@ -310,6 +310,11 @@ case ${host} in
@@ -1335,7 +1335,22 @@ index 6a88ee5a2..a4cd833c6 100644
  aarch64*-*-linux*)
  	extra_parts="$extra_parts crtfastmath.o"
  	md_unwind_def_header=aarch64/aarch64-unwind-def.h
-@@ -811,6 +826,22 @@ i[34567]86-*-gnu*)
+@@ -552,6 +567,14 @@ arm*-*-netbsdelf*)
+ 	    ;;
+ 	esac
+ 	;;
++arm*-*-linux-ohos*)
++	tmake_file="${tmake_file} arm/t-arm t-fixedpoint-gnu-prefix"
++	tmake_file="${tmake_file} arm/t-elf arm/t-bpabi arm/t-linux-eabi t-slibgcc-libgcc"
++	tm_file="$tm_file arm/bpabi-lib.h"
++	unwind_header=config/arm/unwind-arm.h
++	tmake_file="$tmake_file t-softfp-sfdf t-softfp-excl arm/t-softfp t-softfp"
++	tmake_file="${tmake_file} t-ohos-crtstuff"
++	;;
+ arm*-*-linux* | arm*-*-uclinuxfdpiceabi)
+ 	tmake_file="${tmake_file} arm/t-arm t-fixedpoint-gnu-prefix t-crtfm"
+ 	tmake_file="${tmake_file} arm/t-elf arm/t-bpabi arm/t-linux-eabi t-slibgcc-libgcc"
+@@ -811,6 +834,22 @@ i[34567]86-*-gnu*)
  	tm_file="${tm_file} i386/elf-lib.h"
  	md_unwind_header=i386/gnu-unwind.h
  	;;
@@ -1358,7 +1373,32 @@ index 6a88ee5a2..a4cd833c6 100644
  x86_64-*-linux*)
  	extra_parts="$extra_parts crtprec32.o crtprec64.o crtprec80.o crtfastmath.o"
  	tmake_file="${tmake_file} i386/t-crtpc t-crtfm i386/t-crtstuff t-dfprules"
-@@ -1612,7 +1643,7 @@ i[34567]86-*-* | x86_64-*-*)
+@@ -1063,6 +1102,11 @@ microblaze*-*-rtems*)
+ 	;;
+ mips*-*-netbsd*)			# NetBSD/mips, either endian.
+ 	;;
++mips*-*-linux-ohos*)			# Linux OHOS MIPS, either endian.
++	tmake_file="${tmake_file} mips/t-mips16 t-slibgcc-libgcc"
++	tmake_file="${tmake_file} t-ohos-crtstuff"
++	md_unwind_header=mips/linux-unwind.h
++	;;
+ mips*-*-linux*)				# Linux MIPS, either endian.
+ 	extra_parts="$extra_parts crtfastmath.o"
+ 	tmake_file="${tmake_file} t-crtfm"
+@@ -1349,6 +1393,12 @@ pru-*-*)
+ 	tmake_file="${tmake_file} t-softfp-sfdf t-softfp-excl t-softfp t-gnu-prefix pru/t-pru"
+ 	tm_file="$tm_file pru/pru-abi.h"
+ 	;;
++riscv*-*-linux-ohos*)
++	tmake_file="${tmake_file} riscv/t-crtstuff riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address} t-slibgcc-libgcc"
++	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
++	tmake_file="${tmake_file} t-ohos-crtstuff"
++	md_unwind_header=riscv/linux-unwind.h
++	;;
+ riscv*-*-linux*)
+ 	tmake_file="${tmake_file} riscv/t-crtstuff riscv/t-softfp${host_address} t-softfp riscv/t-elf riscv/t-elf${host_address} t-slibgcc-libgcc"
+ 	extra_parts="$extra_parts crtbegin.o crtend.o crti.o crtn.o crtendS.o crtbeginT.o"
+@@ -1612,7 +1662,7 @@ i[34567]86-*-* | x86_64-*-*)
  esac
  
  case ${host} in
