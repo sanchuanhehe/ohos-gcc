@@ -765,7 +765,6 @@ prepare_gcc() {
 configure_gcc() {
     ensure_binutils
     apply_sysroot_patches
-    prepare_gcc
 
     # Note: setup_*_env functions are called inside the subshell below
     # to avoid polluting the parent shell with exported environment variables.

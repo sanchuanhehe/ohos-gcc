@@ -1,6 +1,6 @@
-From 2dfc5874c275db49d330528b4f67a593cc95b0e8 Mon Sep 17 00:00:00 2001
+From 0b543061faf46769b825782c2ac9664e07857596 Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
-Date: Fri, 16 Jan 2026 14:07:08 +0800
+Date: Fri, 16 Jan 2026 19:13:14 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
 
 This patch adds comprehensive support for OpenHarmony OS across multiple
@@ -28,8 +28,6 @@ gcc/ChangeLog:
     * config.gcc: Add OHOS target cases for aarch64, arm, i386/x86_64,
     riscv, and mips architectures. Set DEFAULT_LIBC to LIBC_MUSL for
     OHOS targets. Add OHOS to indirect function support list.
-    * system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
-    systems to prevent build errors on musl-based targets.
     * config/aarch64/aarch64-ohos.h: New file. AArch64-specific OHOS
     configuration with LP64 ABI support and Cortex-A53 errata fixes.
     * config/aarch64/t-aarch64-ohos: New file. AArch64 OHOS makefile
@@ -51,11 +49,6 @@ gcc/ChangeLog:
     configuration with relaxation support.
     * config/t-ohos: New file. OHOS-specific makefile fragment adjusting
     multilib directory names from linux-gnu to linux-ohos.
-
-libcpp/ChangeLog:
-
-    * system.h (__GLIBC_PREREQ): Define compatibility macro for non-glibc
-    systems to prevent preprocessor errors when cross-compiling.
 
 libgcc/ChangeLog:
 
@@ -85,13 +78,11 @@ libstdc++-v3/ChangeLog:
  gcc/config/ohos.h                 | 152 ++++++++++++++++++++++++++++++
  gcc/config/riscv/riscv-ohos.h     | 125 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
- gcc/system.h                      |   6 ++
- libcpp/system.h                   |   5 +
  libgcc/config.host                |  25 ++++-
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 19 files changed, 1158 insertions(+), 6 deletions(-)
+ 17 files changed, 1147 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -1345,39 +1336,6 @@ index 000000000..b45633a3c
 @@ -0,0 +1,2 @@
 +MULTIARCH_DIRNAME := $(subst -linux-gnu,-linux-ohos,$(MULTIARCH_DIRNAME))
 +MULTILIB_OSDIRNAMES := $(subst -linux-gnu,-linux-ohos,$(MULTILIB_OSDIRNAMES))
-diff --git a/gcc/system.h b/gcc/system.h
-index e516b49d0..74eabeeb4 100644
---- a/gcc/system.h
-+++ b/gcc/system.h
-@@ -22,6 +22,12 @@ along with GCC; see the file COPYING3.  If not see
- #ifndef GCC_SYSTEM_H
- #define GCC_SYSTEM_H
- 
-+/* Provide compatibility for __GLIBC_PREREQ on non-glibc systems.
-+   This must be defined early before any system headers are included. */
-+#ifndef __GLIBC_PREREQ
-+#define __GLIBC_PREREQ(x, y) 0
-+#endif
-+
- /* Define this so that inttypes.h defines the PRI?64 macros even
-    when compiling with a C++ compiler.  Define it here so in the
-    event inttypes.h gets pulled in by another header it is already
-diff --git a/libcpp/system.h b/libcpp/system.h
-index cfc9ddaa3..8d2d6d73d 100644
---- a/libcpp/system.h
-+++ b/libcpp/system.h
-@@ -25,6 +25,11 @@ along with GCC; see the file COPYING3.  If not see
- /* We must include stdarg.h before stdio.h.  */
- #include <stdarg.h>
- 
-+/* Compatibility fix for __GLIBC_PREREQ when cross-compiling */
-+#ifndef __GLIBC_PREREQ
-+#define __GLIBC_PREREQ(x, y) 0
-+#endif
-+
- #ifdef HAVE_STDDEF_H
- # include <stddef.h>
- #endif
 diff --git a/libgcc/config.host b/libgcc/config.host
 index 6a88ee5a2..2d390f801 100644
 --- a/libgcc/config.host
