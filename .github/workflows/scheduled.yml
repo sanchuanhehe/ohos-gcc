@@ -5,12 +5,24 @@ on:
     # Run every Sunday at 00:00 UTC
     - cron: '0 0 * * 0'
   workflow_dispatch:
+    inputs:
+      build_stage2:
+        description: 'Build Stage 2 (Canadian Cross)'
+        required: false
+        default: 'true'
+
+env:
+  GCC_VERSION: '15.2.0'
+  BINUTILS_VERSION: '2.43'
 
 jobs:
-  scheduled-build:
-    name: Weekly Build ${{ matrix.target }}
-    runs-on: ubuntu-22.04
-    timeout-minutes: 240
+  # ============================================================================
+  # Stage 1: Build cross-compiler on multiple Ubuntu versions
+  # ============================================================================
+  build-cross:
+    name: Stage 1 - ${{ matrix.target }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
     
     strategy:
       fail-fast: false
@@ -20,6 +32,54 @@ jobs:
           - aarch64-linux-ohos
           - arm-linux-ohos
           - riscv64-linux-ohos
+        os:
+          - ubuntu-24.04
+          - ubuntu-22.04
+        include:
+          # Ubuntu 24.04 runners
+          - target: x86_64-linux-ohos
+            os: ubuntu-24.04
+            runner: ubuntu-24.04
+          - target: aarch64-linux-ohos
+            os: ubuntu-24.04
+            runner: ubuntu-24.04-arm
+          - target: arm-linux-ohos
+            os: ubuntu-24.04
+            runner: ubuntu-24.04
+          - target: riscv64-linux-ohos
+            os: ubuntu-24.04
+            runner: ubuntu-24.04
+          # Ubuntu 22.04 runners (all on x86_64)
+          - target: x86_64-linux-ohos
+            os: ubuntu-22.04
+            runner: ubuntu-22.04
+          - target: aarch64-linux-ohos
+            os: ubuntu-22.04
+            runner: ubuntu-22.04
+          - target: arm-linux-ohos
+            os: ubuntu-22.04
+            runner: ubuntu-22.04
+          - target: riscv64-linux-ohos
+            os: ubuntu-22.04
+            runner: ubuntu-22.04
+        exclude:
+          # Exclude default matrix combinations (we define them explicitly in include)
+          - target: x86_64-linux-ohos
+            os: ubuntu-24.04
+          - target: aarch64-linux-ohos
+            os: ubuntu-24.04
+          - target: arm-linux-ohos
+            os: ubuntu-24.04
+          - target: riscv64-linux-ohos
+            os: ubuntu-24.04
+          - target: x86_64-linux-ohos
+            os: ubuntu-22.04
+          - target: aarch64-linux-ohos
+            os: ubuntu-22.04
+          - target: arm-linux-ohos
+            os: ubuntu-22.04
+          - target: riscv64-linux-ohos
+            os: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -27,10 +87,15 @@ jobs:
 
       - name: Free disk space
         run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache/CodeQL
+          
+          echo "=== Disk space after cleanup ==="
           df -h
 
       - name: Install build dependencies
@@ -44,22 +109,227 @@ jobs:
             wget curl tar xz-utils file python3 \
             autoconf automake libtool pkg-config
 
-      - name: Build toolchain
+      - name: Display build environment
+        run: |
+          echo "=== Build Environment ==="
+          echo "OS: ${{ matrix.os }}"
+          echo "Runner: ${{ matrix.runner }}"
+          echo "Target: ${{ matrix.target }}"
+          uname -a
+          gcc --version | head -1
+          g++ --version | head -1
+
+      - name: Build Stage 1 toolchain
         run: |
           chmod +x build.sh
-          ./build.sh --target=${{ matrix.target }} --jobs=$(nproc) all
+          ./build.sh --target=${{ matrix.target }} --jobs=$(nproc) all 2>&1 | tee build.log || {
+            echo "Build failed, showing last 100 lines of log:"
+            tail -100 build.log
+            exit 1
+          }
 
-      - name: Verify toolchain
+      - name: Verify Stage 1 toolchain
         run: |
           export PATH="${PWD}/install/bin:${PATH}"
+          
+          echo "=== Toolchain verification ==="
           ${{ matrix.target }}-gcc --version
-          echo 'int main() { return 0; }' | ${{ matrix.target }}-gcc -x c -c - -o /dev/null
+          ${{ matrix.target }}-g++ --version
+          
+          echo "--- Test C compilation ---"
+          echo 'int main() { return 0; }' > test.c
+          ${{ matrix.target }}-gcc -c test.c -o test.o
+          file test.o
+          
+          echo "--- Test C++ compilation ---"
+          echo 'int main() { return 0; }' > test.cpp
+          ${{ matrix.target }}-g++ -c test.cpp -o test_cpp.o
+          file test_cpp.o
+          
+          echo "✓ Stage 1 verification passed"
+
+      - name: Upload Stage 1 artifact (for Stage 2)
+        if: matrix.os == 'ubuntu-24.04' && (matrix.target == 'x86_64-linux-ohos' || matrix.target == 'aarch64-linux-ohos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage1-${{ matrix.target }}-${{ matrix.os }}
+          path: install/
+          retention-days: 1
 
       - name: Report status
         if: always()
         run: |
-          if [ $? -eq 0 ]; then
-            echo "✓ Build for ${{ matrix.target }} succeeded"
+          echo "=== Build Summary ==="
+          echo "Target: ${{ matrix.target }}"
+          echo "OS: ${{ matrix.os }}"
+          echo "Runner: ${{ matrix.runner }}"
+          if [ -f install/bin/${{ matrix.target }}-gcc ]; then
+            echo "Status: ✓ SUCCESS"
           else
-            echo "✗ Build for ${{ matrix.target }} failed"
+            echo "Status: ✗ FAILED"
           fi
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-stage1-${{ matrix.target }}-${{ matrix.os }}
+          path: |
+            build.log
+            build-ohos/config.log
+            build-binutils/config.log
+          retention-days: 7
+
+  # ============================================================================
+  # Stage 2: Build native OHOS compiler (Canadian Cross)
+  # Only on ubuntu-24.04 for main targets
+  # ============================================================================
+  build-native:
+    name: Stage 2 - Native ${{ matrix.target }}
+    needs: build-cross
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_stage2 != 'false' }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-linux-ohos
+          - aarch64-linux-ohos
+        include:
+          - target: x86_64-linux-ohos
+            runner: ubuntu-24.04
+          - target: aarch64-linux-ohos
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/go
+          
+          echo "=== Disk space after cleanup ==="
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential gcc g++ make \
+            flex bison texinfo \
+            libgmp-dev libmpfr-dev libmpc-dev libisl-dev \
+            zlib1g-dev libzstd-dev \
+            wget curl tar xz-utils file python3 \
+            autoconf automake libtool pkg-config
+
+      - name: Download Stage 1 cross-compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: stage1-${{ matrix.target }}-ubuntu-24.04
+          path: install/
+
+      - name: Make Stage 1 tools executable
+        run: |
+          chmod +x install/bin/*
+          chmod +x install/libexec/gcc/${{ matrix.target }}/*/* || true
+          
+          export PATH="${PWD}/install/bin:${PATH}"
+          echo "--- Stage 1 verification ---"
+          ${{ matrix.target }}-gcc --version
+
+      - name: Build Stage 2 (Canadian Cross)
+        run: |
+          set -o pipefail
+          
+          ./build.sh \
+            --host=${{ matrix.target }} \
+            --target=${{ matrix.target }} \
+            --stage1="${PWD}/install" \
+            --prefix="${PWD}/install-stage2" \
+            --jobs=$(nproc) \
+            all 2>&1 | tee build-stage2.log || {
+            echo "Stage 2 build failed, showing last 200 lines:"
+            tail -200 build-stage2.log
+            exit 1
+          }
+
+      - name: Verify Stage 2 native compiler
+        run: |
+          echo "=== Stage 2 Native Compiler Verification ==="
+          
+          echo "--- Binary information ---"
+          file install-stage2/bin/${{ matrix.target }}-gcc
+          file install-stage2/bin/${{ matrix.target }}-g++
+          
+          echo "--- Expected: OHOS binaries ---"
+          if file install-stage2/bin/${{ matrix.target }}-gcc | grep -q "ELF.*dynamically linked"; then
+            echo "✓ Native OHOS compiler built successfully"
+          else
+            echo "✗ Binary format unexpected"
+            exit 1
+          fi
+          
+          echo "--- Installation summary ---"
+          echo "Total files: $(find install-stage2 -type f | wc -l)"
+          echo "Total size: $(du -sh install-stage2 | cut -f1)"
+
+      - name: Report status
+        if: always()
+        run: |
+          echo "=== Stage 2 Build Summary ==="
+          echo "Target: ${{ matrix.target }}"
+          if [ -f install-stage2/bin/${{ matrix.target }}-gcc ]; then
+            echo "Status: ✓ SUCCESS"
+          else
+            echo "Status: ✗ FAILED"
+          fi
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-stage2-${{ matrix.target }}
+          path: |
+            build-stage2.log
+            build-ohos/config.log
+            build-ohos/gcc/config.log
+          retention-days: 7
+
+  # ============================================================================
+  # Summary job
+  # ============================================================================
+  summary:
+    name: Build Summary
+    needs: [build-cross, build-native]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Generate summary
+        run: |
+          echo "# Weekly Scheduled Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Stage 1 - Cross Compilers" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Ubuntu 24.04 | Ubuntu 22.04 |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x86_64-linux-ohos | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| aarch64-linux-ohos | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| arm-linux-ohos | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| riscv64-linux-ohos | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} | ${{ needs.build-cross.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Stage 2 - Native OHOS Compilers (Canadian Cross)" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| x86_64-linux-ohos | ${{ needs.build-native.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| aarch64-linux-ohos | ${{ needs.build-native.result == 'success' && '✓' || '✗' }} |" >> $GITHUB_STEP_SUMMARY
