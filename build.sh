@@ -865,14 +865,6 @@ configure_gcc() {
             export CXX_FOR_BUILD="${CXX_FOR_BUILD} -B/usr/bin"
             export AR_FOR_BUILD="${AR_FOR_BUILD}"
             export RANLIB_FOR_BUILD="${RANLIB_FOR_BUILD}"
-            
-            # For Canadian Cross builds, we need to skip executable tests in
-            # sub-configures (like libcody) since the C++ compiler produces
-            # HOST (aarch64) binaries that cannot run on BUILD (x86_64) machine.
-            # Setting cross_compiling=yes via cache variables tells autoconf
-            # to skip runtime tests that would fail in cross-compilation.
-            export ac_cv_prog_cxx_works=yes
-            export ac_cv_prog_cc_works=yes
         fi
 
         # Add binutils to PATH
