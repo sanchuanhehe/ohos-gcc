@@ -1,4 +1,4 @@
-From 487c2d2923d4b7677735f791b82d04a2471adf44 Mon Sep 17 00:00:00 2001
+From 3d5cd6c3620bbcbd4465b028027989cc87fd7c3f Mon Sep 17 00:00:00 2001
 From: sanchuanhehe <wyihe5220@gmail.com>
 Date: Fri, 16 Jan 2026 20:40:14 +0800
 Subject: [PATCH] Add OpenHarmony (OHOS) target support to GCC
@@ -69,9 +69,9 @@ consistent with musl-based Linux distributions.
  gcc/config/aarch64/t-aarch64-ohos |  28 ++++++
  gcc/config/arm/arm-ohos.h         | 121 ++++++++++++++++++++++++
  gcc/config/arm/t-arm-ohos         |  28 ++++++
- gcc/config/i386/ohos.h            | 117 +++++++++++++++++++++++
+ gcc/config/i386/ohos.h            | 115 +++++++++++++++++++++++
  gcc/config/i386/ohos64.h          | 117 +++++++++++++++++++++++
- gcc/config/mips/mips-ohos.h       | 121 ++++++++++++++++++++++++
+ gcc/config/mips/mips-ohos.h       | 129 ++++++++++++++++++++++++++
  gcc/config/ohos.h                 | 148 ++++++++++++++++++++++++++++++
  gcc/config/riscv/riscv-ohos.h     | 118 ++++++++++++++++++++++++
  gcc/config/t-ohos                 |   2 +
@@ -79,7 +79,7 @@ consistent with musl-based Linux distributions.
  libgcc/config/t-ohos-crtstuff     |   4 +
  libgcc/gthr-posix.h               |   4 +-
  libstdc++-v3/configure.host       |   3 +
- 16 files changed, 1083 insertions(+), 6 deletions(-)
+ 16 files changed, 1089 insertions(+), 6 deletions(-)
  create mode 100644 gcc/config/aarch64/aarch64-ohos.h
  create mode 100644 gcc/config/aarch64/t-aarch64-ohos
  create mode 100644 gcc/config/arm/arm-ohos.h
@@ -578,10 +578,10 @@ index 000000000..23ed89983
 +MULTILIB_OSDIRNAMES += mfloat-abi.hard=../lib/arm$(ARM_BE)-linux-ohoshf$(call if_multiarch,:arm$(ARM_BE)-linux-ohoshf)
 diff --git a/gcc/config/i386/ohos.h b/gcc/config/i386/ohos.h
 new file mode 100644
-index 000000000..e56eee3b3
+index 000000000..c5e737055
 --- /dev/null
 +++ b/gcc/config/i386/ohos.h
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,115 @@
 +/* Definitions for i386 running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -680,16 +680,14 @@ index 000000000..e56eee3b3
 +#define LIB_SPEC GNU_USER_TARGET_LIB_SPEC
 +
 +#undef LINK_SPEC
-+/* Define the link spec for x86 OpenHarmony */
++/* Define the link spec for i386 OpenHarmony - 32-bit only, no multilib */
 +#define LINK_SPEC						\
-+  "%{" SPEC_32 ":-m elf_i386} "				\
-+  "%{" SPEC_64 ":-m elf_x86_64} "				\
++  "-m elf_i386 "						\
 +  "%{shared:-shared} "						\
 +  "%{!shared: "							\
 +    "%{!static: "						\
 +      "%{rdynamic:-export-dynamic} "				\
-+      "%{" SPEC_32 ":-dynamic-linker " OHOS_DYNAMIC_LINKER "} "	\
-+      "%{" SPEC_64 ":-dynamic-linker " OHOS_DYNAMIC_LINKER "}} "	\
++      "-dynamic-linker " OHOS_DYNAMIC_LINKER "} "		\
 +    "%{static:-static}} "					\
 +  "-L%R/usr/lib " 						\
 +  "-L%R/lib "
@@ -824,10 +822,10 @@ index 000000000..a09bd2603
 +#endif /* GCC_I386_OHOS64_H */
 diff --git a/gcc/config/mips/mips-ohos.h b/gcc/config/mips/mips-ohos.h
 new file mode 100644
-index 000000000..f9abd6ff8
+index 000000000..cc0cd38ea
 --- /dev/null
 +++ b/gcc/config/mips/mips-ohos.h
-@@ -0,0 +1,121 @@
+@@ -0,0 +1,129 @@
 +/* Definitions for MIPS running OpenHarmony (OHOS).
 +   Copyright (C) 2026 Free Software Foundation, Inc.
 +
@@ -930,17 +928,25 @@ index 000000000..f9abd6ff8
 +  "%{shared|pie:crtendS.o%s;:crtend.o%s} \
 +   %R/usr/lib/crtn.o%s"
 +
++/* Linker emulation modes - same as linux.h */
++#define OHOS_LINK_EMULATION32 "elf32%{EB:b}%{EL:l}tsmip"
++#define OHOS_LINK_EMULATION64 "elf64%{EB:b}%{EL:l}tsmip"
++#define OHOS_LINK_EMULATIONN32 "elf32%{EB:b}%{EL:l}tsmipn32"
++
 +/* Define the link spec for MIPS OpenHarmony - follow gnu-user.h pattern */
 +#undef LINK_SPEC
 +#define LINK_SPEC						\
 +  "%{G*} %{EB} %{EL} %{mips*} %{shared} "			\
-+  "%{!shared: "						\
++  "%{!shared: "							\
 +    "%{!static: "						\
 +      "%{rdynamic:-export-dynamic} "				\
 +      "%{mabi=n32: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKERN32 "} "	\
 +      "%{mabi=64: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKER64 "} "	\
 +      "%{mabi=32: -dynamic-linker " OHOS_ARCH_DYNAMIC_LINKER32 "}} "	\
 +    "%{static:-static}} "					\
++  "%{mabi=n32:-m " OHOS_LINK_EMULATIONN32 "} "			\
++  "%{mabi=64:-m " OHOS_LINK_EMULATION64 "} "			\
++  "%{mabi=32:-m " OHOS_LINK_EMULATION32 "} "			\
 +  "-L%R/usr/lib " 						\
 +  "-L%R/lib "
 +
