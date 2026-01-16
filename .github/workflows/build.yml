@@ -38,7 +38,7 @@ jobs:
   # Stage 1: Build cross-compiler (runs on Linux, compiles for OHOS)
   build-cross:
     name: Stage 1 - Cross Compiler ${{ matrix.target }}
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     
     strategy:
@@ -50,8 +50,10 @@ jobs:
         include:
           - target: x86_64-linux-ohos
             arch: x86_64
+            runner: ubuntu-24.04
           - target: aarch64-linux-ohos
             arch: aarch64
+            runner: ubuntu-24.04-arm  # Native ARM64 runner
 
     outputs:
       x86_64-success: ${{ steps.verify.outputs.x86_64-success }}
@@ -221,7 +223,7 @@ jobs:
   build-native:
     name: Stage 2 - Native OHOS Compiler ${{ matrix.target }}
     needs: build-cross
-    runs-on: ubuntu-24.04
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 240
     # Build native compiler unless explicitly disabled via workflow_dispatch
     if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_native != 'false' }}
@@ -235,8 +237,10 @@ jobs:
         include:
           - target: x86_64-linux-ohos
             arch: x86_64
+            runner: ubuntu-24.04
           - target: aarch64-linux-ohos
             arch: aarch64
+            runner: ubuntu-24.04-arm  # Native ARM64 runner
 
     steps:
       - name: Checkout repository
