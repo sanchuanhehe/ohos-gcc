@@ -89,7 +89,7 @@ update_config_sub() {
     # Find and replace all config.sub files
     find "$src_dir" -name "config.sub" -type f | while read -r file; do
         if grep -q "ohos" "$file" 2>/dev/null; then
-            msg "  $(basename $(dirname $file))/config.sub already has OHOS support"
+            msg "  $(basename "$(dirname "$file")")/config.sub already has OHOS support"
         else
             cp "$CONFIG_SUB" "$file"
             msg "  Updated: $file"
@@ -132,10 +132,10 @@ build_make() {
     # The old K&R style declarations conflict with modern headers
     msg "Patching source for OHOS compatibility..."
     # Fix getenv declarations
-    find "$src_dir" -name "*.c" -o -name "*.h" | xargs sed -i \
+    find "$src_dir" \( -name "*.c" -o -name "*.h" \) -exec sed -i \
         -e 's/extern char \*getenv ();/extern char *getenv (const char *);/g' \
         -e 's/extern int getopt ();/extern int getopt (int, char *const*, const char *);/g' \
-        2>/dev/null || true
+        {} + 2>/dev/null || true
     
     # Build
     rm -rf "$build_dir"
@@ -157,7 +157,7 @@ build_make() {
         --without-guile
     
     msg "Compiling make..."
-    make -j$(nproc)
+    make -j"$(nproc)"
     
     msg "Installing make..."
     make install
@@ -217,7 +217,7 @@ build_ncurses() {
         --with-normal
     
     msg "Compiling ncurses..."
-    make -j$(nproc)
+    make -j"$(nproc)"
     
     msg "Installing ncurses..."
     make install
@@ -291,7 +291,7 @@ EOF
         --with-installed-readline=no
     
     msg "Compiling bash..."
-    make -j$(nproc)
+    make -j"$(nproc)"
     
     msg "Installing bash..."
     make install
