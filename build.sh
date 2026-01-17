@@ -934,6 +934,10 @@ configure_gcc() {
         # Native OHOS build (Stage 3) - enable bootstrap to verify compiler correctness
         # Requires patched basic_string.h with iterator overloads for misc-inst.cc
         cross_configure+=("--enable-bootstrap")
+        # Disable bootstrap-debug configuration because -gtoggle doesn't work correctly
+        # with OHOS musl libc, causing bootstrap comparison failures due to different
+        # debug info between stage2 and stage3. Use empty config for simple bootstrap.
+        cross_configure+=("--with-build-config=")
     fi
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
         cross_configure+=("--with-sysroot=${SYSROOT}")
