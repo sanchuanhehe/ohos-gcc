@@ -30,6 +30,11 @@ BUILD_DIR="${SCRIPT_DIR}/build-ohos"
 INSTALL_PREFIX="${INSTALL_PREFIX:-${SCRIPT_DIR}/install}"
 SYSROOT="${SYSROOT:-}"
 
+# Relocatable sysroot option (for distributable cross-compilers)
+# When enabled, Stage 1 cross-compiler uses a relative sysroot path
+# instead of absolute path, making the toolchain relocatable.
+RELOCATABLE_SYSROOT="${RELOCATABLE_SYSROOT:-no}"
+
 # Binutils configuration
 BINUTILS_VERSION="${BINUTILS_VERSION:-2.43}"
 BINUTILS_SOURCE_DIR="${SCRIPT_DIR}/binutils-${BINUTILS_VERSION}"
@@ -619,11 +624,19 @@ build_binutils() {
 
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    #   If --relocatable-sysroot is set, use relative path for distributable toolchain
     # - Stage 2 (Canadian Cross): use "/" as sysroot so binutils uses correct paths
     # - Stage 3 (native OHOS): no sysroot needed, uses system paths directly
     if [ -n "${SYSROOT}" ] && ! is_native_ohos_build && ! is_canadian_cross; then
-        # Stage 1: Cross-compiler needs explicit sysroot
-        configure_args+=("--with-sysroot=${SYSROOT}")
+        # Stage 1: Cross-compiler needs sysroot
+        if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
+            # Relocatable: use path relative to exec_prefix for distributable toolchain
+            # Result: <prefix>/<target>/sysroot (e.g., /opt/ohos-gcc/aarch64-linux-ohos/sysroot)
+            configure_args+=("--with-sysroot=\${exec_prefix}/\${target_alias}/sysroot")
+        else
+            # Absolute: use explicit sysroot path (for CI builds)
+            configure_args+=("--with-sysroot=${SYSROOT}")
+        fi
     elif is_canadian_cross; then
         # Stage 2: Canadian Cross builds native OHOS binutils with sysroot=/
         configure_args+=("--with-sysroot=/")
@@ -948,12 +961,20 @@ configure_gcc() {
     
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    #   If --relocatable-sysroot is set, use relative path for distributable toolchain
     # - Stage 2 (Canadian Cross): use "/" as sysroot so the compiler looks for
     #   crt*.o in /usr/lib/ when running natively on OHOS
     # - Stage 3 (native OHOS): inherits sysroot from Stage 2 compiler
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
-        # Stage 1: Cross-compiler needs explicit sysroot for target libraries
-        cross_configure+=("--with-sysroot=${SYSROOT}")
+        # Stage 1: Cross-compiler needs sysroot for target libraries
+        if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
+            # Relocatable: use path relative to exec_prefix for distributable toolchain
+            # Result: <prefix>/<target>/sysroot (e.g., /opt/ohos-gcc/aarch64-linux-ohos/sysroot)
+            cross_configure+=("--with-sysroot=\${exec_prefix}/\${target_alias}/sysroot")
+        else
+            # Absolute: use explicit sysroot path (for CI builds)
+            cross_configure+=("--with-sysroot=${SYSROOT}")
+        fi
     elif is_canadian_cross; then
         # Stage 2: Canadian Cross builds a native OHOS compiler.
         # Configure with sysroot=/ so the compiler will look for crt*.o
@@ -1174,6 +1195,8 @@ Options:
   --prefix=PREFIX           Set installation prefix (default: ./install)
   --sysroot=SYSROOT         Set sysroot path for cross-compilation
                             (default: ndk/sysroot/CTARGET)
+  --relocatable-sysroot     Use relative sysroot path for distributable
+                            cross-compilers (sysroot at <prefix>/<target>/sysroot)
   --stage1=PATH             Stage 1 cross-compiler prefix (for stage 2 builds)
   --stage2=PATH             Stage 2 native compiler prefix (for stage 3 builds)
   --jobs=N                  Number of parallel jobs (default: $(nproc))
@@ -1250,6 +1273,9 @@ while [ $# -gt 0 ]; do
             ;;
         --sysroot=*)
             SYSROOT="${1#*=}"
+            ;;
+        --relocatable-sysroot)
+            RELOCATABLE_SYSROOT="yes"
             ;;
         --stage1=*)
             STAGE1_PREFIX="${1#*=}"

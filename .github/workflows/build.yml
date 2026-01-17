@@ -144,7 +144,9 @@ jobs:
       - name: build GCC
         run: |
           echo "=== Installing GCC ==="
-          ./build.sh --target=${{ matrix.target }} all 2>&1 | tee all-gcc.log || {
+          # Use --relocatable-sysroot to make the toolchain distributable
+          # The sysroot will be at <prefix>/<target>/sysroot
+          ./build.sh --target=${{ matrix.target }} --relocatable-sysroot all 2>&1 | tee all-gcc.log || {
             echo "=== GCC INSTALL FAILED ==="
             tail -100 install-gcc.log
             exit 1
@@ -153,6 +155,13 @@ jobs:
           echo "--- Installation summary ---"
           echo "Installed files: $(find install -type f | wc -l)"
           echo "Total size: $(du -sh install | cut -f1)"
+          
+          # Copy sysroot to the relocatable location for distribution
+          echo "--- Copying sysroot to relocatable location ---"
+          SYSROOT_DST="install/${{ matrix.target }}/sysroot"
+          mkdir -p "${SYSROOT_DST}"
+          cp -a "ndk/sysroot/${{ matrix.target }}"/* "${SYSROOT_DST}/"
+          echo "Sysroot size: $(du -sh ${SYSROOT_DST} | cut -f1)"
 
       - name: Verify toolchain
         id: verify
@@ -196,6 +205,44 @@ jobs:
         run: |
           PACKAGE_NAME="gcc-${{ env.GCC_VERSION }}-cross-${{ matrix.target }}"
           mkdir -p artifacts
+          
+          # Create README for the package
+          cat > install/README.md << 'EOF'
+          # GCC Cross-Compiler for OpenHarmony
+          
+          This is a relocatable cross-compiler toolchain for OpenHarmony (OHOS).
+          
+          ## Directory Structure
+          
+          ```
+          <install-dir>/
+          ├── bin/                    # Compiler binaries
+          │   ├── <target>-gcc
+          │   ├── <target>-g++
+          │   └── ...
+          ├── lib/                    # Host libraries
+          ├── libexec/                # Compiler internals
+          └── <target>/
+              ├── sysroot/            # Target sysroot (headers + libraries)
+              │   ├── usr/include/
+              │   └── usr/lib/
+              └── ...
+          ```
+          
+          ## Usage
+          
+          1. Extract the tarball to your desired location (e.g., `/opt/ohos-gcc`)
+          2. Add `<install-dir>/bin` to your PATH
+          3. Use the compiler:
+             ```bash
+             export PATH=/opt/ohos-gcc/bin:$PATH
+             aarch64-linux-ohos-gcc -o hello hello.c
+             ```
+          
+          The sysroot is already included and configured. No additional setup needed.
+          EOF
+          
+          # Create tarball (includes sysroot)
           tar -cJf "artifacts/${PACKAGE_NAME}.tar.xz" -C install .
           
           # Generate checksums
