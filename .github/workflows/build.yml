@@ -2,7 +2,9 @@ name: Build GCC Cross-Compiler for OpenHarmony
 
 on:
   push:
-    branches: [ main, develop , 'release/*' , 'hotfix/*' , 'v*' , 'refs/tags/v*' , 'feature/*' ]
+    branches: [ main, develop, 'release/*', 'hotfix/*', 'feature/*' ]
+    tags:
+      - 'v*'
     paths-ignore:
       - '**.md'
       - 'LICENSE'
