@@ -9,4 +9,4 @@ build-binutils
 build.log
 install*
 *.log
-*.tar.gz
+*.tar.*

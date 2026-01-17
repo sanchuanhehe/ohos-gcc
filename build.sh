@@ -585,7 +585,6 @@ prepare_binutils() {
 }
 
 build_binutils() {
-    prepare_binutils
 
     # Check toolchains first (before subshell)
     if is_native_ohos_build && [ -n "${STAGE2_PREFIX}" ]; then

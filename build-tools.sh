@@ -14,6 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAKE_VERSION="${MAKE_VERSION:-4.4.1}"
 OHOS_BASH_VERSION="${OHOS_BASH_VERSION:-5.2.32}"
 NCURSES_VERSION="${NCURSES_VERSION:-6.4}"  # bash readline dependency
+PATCH_VERSION="${PATCH_VERSION:-2.7.6}"
 
 # Directories
 STAGE1_PREFIX="${STAGE1_PREFIX:-${SCRIPT_DIR}/install}"
@@ -35,6 +36,7 @@ STRIP="${STAGE1_PREFIX}/bin/${TARGET}-strip"
 MAKE_URL="https://ftp.gnu.org/gnu/make/make-${MAKE_VERSION}.tar.gz"
 BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${OHOS_BASH_VERSION}.tar.gz"
 NCURSES_URL="https://ftp.gnu.org/gnu/ncurses/ncurses-${NCURSES_VERSION}.tar.gz"
+PATCH_URL="https://ftp.gnu.org/gnu/patch/patch-${PATCH_VERSION}.tar.xz"
 
 # Local config.sub with OHOS support
 CONFIG_SUB="${SCRIPT_DIR}/config/config.sub"
@@ -304,10 +306,84 @@ EOF
     ls -lh "${TOOLS_INSTALL_DIR}/bin/bash"
 }
 
+build_patch() {
+    msg "Building GNU Patch ${PATCH_VERSION} for ${TARGET}..."
+    
+    local src_dir="${TOOLS_BUILD_DIR}/patch-${PATCH_VERSION}"
+    local build_dir="${TOOLS_BUILD_DIR}/build-patch"
+    
+    # Download
+    download "$PATCH_URL" "${DOWNLOAD_DIR}/patch-${PATCH_VERSION}.tar.xz"
+    
+    # Extract
+    if [ ! -d "$src_dir" ]; then
+        msg "Extracting patch source..."
+        tar -xJf "${DOWNLOAD_DIR}/patch-${PATCH_VERSION}.tar.xz" -C "${TOOLS_BUILD_DIR}"
+    fi
+    
+    # Update config.sub to support OHOS
+    update_config_sub "$src_dir"
+    
+    # Build
+    rm -rf "$build_dir"
+    mkdir -p "$build_dir"
+    cd "$build_dir"
+    
+    msg "Configuring patch..."
+    
+    # Create config.cache to tell configure that OHOS libc already has these functions
+    # This prevents gnulib from providing conflicting replacements
+    cat > config.cache << 'EOF'
+ac_cv_func_renameat2=yes
+gl_cv_func_renameat2_works=yes
+ac_cv_func_renameat=yes
+ac_cv_func_faccessat=yes
+ac_cv_func_fstatat=yes
+ac_cv_func_openat=yes
+ac_cv_func_readlinkat=yes
+ac_cv_func_symlinkat=yes
+ac_cv_func_unlinkat=yes
+ac_cv_func_mkdirat=yes
+ac_cv_func_fchownat=yes
+ac_cv_func_fchmodat=yes
+ac_cv_func_linkat=yes
+ac_cv_func_utimensat=yes
+EOF
+    
+    CFLAGS="-O2 -static -D_GNU_SOURCE" \
+    LDFLAGS="-static" \
+    CC="$CC" \
+    AR="$AR" \
+    RANLIB="$RANLIB" \
+    "$src_dir/configure" \
+        --host="${TARGET}" \
+        --prefix="${TOOLS_INSTALL_DIR}" \
+        --cache-file=config.cache
+    
+    # Remove gnulib's renameat2 replacement - OHOS libc already has it
+    # This prevents "multiple definition" errors when linking statically
+    msg "Patching Makefile to avoid duplicate symbols with OHOS libc..."
+    sed -i 's/renameat2\.\$(OBJEXT)//g' lib/Makefile
+    
+    msg "Compiling patch..."
+    make -j"$(nproc)"
+    
+    msg "Installing patch..."
+    make install
+    
+    # Strip binary
+    "$STRIP" "${TOOLS_INSTALL_DIR}/bin/patch" 2>/dev/null || true
+    
+    msg "Patch built successfully!"
+    file "${TOOLS_INSTALL_DIR}/bin/patch"
+    ls -lh "${TOOLS_INSTALL_DIR}/bin/patch"
+}
+
 build_all() {
     msg "Building all tools for ${TARGET}..."
     build_make
     build_bash
+    build_patch
     
     msg ""
     msg "============================================"
@@ -322,6 +398,7 @@ build_all() {
     msg "To use in OHOS container:"
     msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/make CONTAINER:/bin/"
     msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/bash CONTAINER:/bin/"
+    msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/patch CONTAINER:/bin/"
 }
 
 clean() {
@@ -337,9 +414,10 @@ Usage: $0 [OPTIONS] COMMAND
 Build static tools for OpenHarmony using cross-compiler.
 
 Commands:
-  all       Build all tools (make, bash)
+  all       Build all tools (make, bash, patch)
   make      Build GNU Make only
   bash      Build Bash only
+  patch     Build GNU Patch only
   clean     Clean build directories
 
 Options:
@@ -389,7 +467,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        all|make|bash|clean)
+        all|make|bash|patch|clean)
             COMMAND="$1"
             shift
             ;;
@@ -417,6 +495,9 @@ case "$COMMAND" in
         ;;
     bash)
         build_bash
+        ;;
+    patch)
+        build_patch
         ;;
     clean)
         clean
