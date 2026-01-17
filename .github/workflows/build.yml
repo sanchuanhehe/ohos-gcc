@@ -23,6 +23,10 @@ on:
         description: 'Build native OHOS compiler (Canadian Cross)'
         required: false
         default: 'true'
+      build_bootstrap:
+        description: 'Build Stage 3 bootstrap (self-hosting)'
+        required: false
+        default: 'true'
       debug:
         description: 'Enable debug mode'
         required: false
@@ -504,6 +508,268 @@ jobs:
             build-ohos/gcc/config.log
             build-ohos/gmp/config.log
             build-binutils/config.log
+          retention-days: 7
+
+      - name: Upload stage 2 install for Stage 3 bootstrap
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage2-${{ matrix.target }}
+          path: install-stage2/
+          retention-days: 1
+
+  # Build tools (gawk, make, bash, patch) needed for Stage 3
+  build-tools:
+    name: Build Tools for ${{ matrix.target }}
+    needs: build-cross
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_native != 'false' }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-linux-ohos
+          - aarch64-linux-ohos
+        include:
+          - target: x86_64-linux-ohos
+            runner: ubuntu-24.04
+            arch: x86_64
+          - target: aarch64-linux-ohos
+            runner: ubuntu-24.04-arm
+            arch: aarch64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget curl xz-utils build-essential
+
+      - name: Download stage 1 cross-compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: stage1-${{ matrix.target }}
+          path: install/
+
+      - name: Make stage 1 tools executable
+        run: |
+          chmod +x install/bin/*
+          chmod +x install/libexec/gcc/${{ matrix.target }}/*/* || true
+          export PATH="${PWD}/install/bin:${PATH}"
+          ${{ matrix.target }}-gcc --version
+
+      - name: Prepare NDK sysroot
+        run: |
+          ./build.sh --target=${{ matrix.target }} prepare_ndk
+          echo "=== NDK sysroot prepared ==="
+          ls -la ndk/sysroot/${{ matrix.target }}/usr/lib/ | head -10
+
+      - name: Build all tools using build-tools.sh
+        run: |
+          ./build-tools.sh --target=${{ matrix.target }} --stage1=./install all
+          echo "=== Built tools ==="
+          ls -lh install-tools/bin/
+
+      - name: Upload tools artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ohos-tools-${{ matrix.target }}
+          path: install-tools/
+          retention-days: 1
+
+  # Stage 3: Bootstrap build (runs inside OHOS container)
+  build-bootstrap:
+    name: Stage 3 - Bootstrap ${{ matrix.target }}
+    needs: [build-native, build-tools]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_bootstrap != 'false' }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - x86_64-linux-ohos
+        include:
+          - target: x86_64-linux-ohos
+            runner: ubuntu-24.04
+            arch: x86_64
+            container_image: ghcr.io/sanchuanhehe/openharmony:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          echo "=== Disk space before cleanup ==="
+          df -h
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /opt/hostedtoolcache/go
+          echo "=== Disk space after cleanup ==="
+          df -h
+
+      - name: Download stage 2 native compiler
+        uses: actions/download-artifact@v4
+        with:
+          name: stage2-${{ matrix.target }}
+          path: stage2-install/
+
+      - name: Download OHOS tools
+        uses: actions/download-artifact@v4
+        with:
+          name: ohos-tools-${{ matrix.target }}
+          path: ohos-tools/
+
+      - name: Pull OHOS container image
+        run: |
+          docker pull ${{ matrix.container_image }}
+
+      - name: Prepare container environment
+        run: |
+          # Create a script to run inside the container
+          cat > setup-container.sh << 'SETUP_EOF'
+          #!/bin/sh
+          set -e
+          
+          echo "=== Setting up OHOS container environment ==="
+          
+          # Install busybox symlinks
+          echo "--- Installing busybox symlinks ---"
+          busybox --install -s /bin
+          
+          # Verify essential commands
+          echo "--- Verifying commands ---"
+          which sh ls cp mv rm mkdir cat echo
+          
+          echo "=== Container setup complete ==="
+          SETUP_EOF
+          chmod +x setup-container.sh
+
+      - name: Build Stage 3 (Bootstrap) in OHOS container
+        run: |
+          # Run the bootstrap build inside OHOS container
+          docker run --rm \
+            -v "${PWD}:/ohos-gcc" \
+            -v "${PWD}/stage2-install:/stage2-install:ro" \
+            -v "${PWD}/ohos-tools:/ohos-tools:ro" \
+            -w /ohos-gcc \
+            ${{ matrix.container_image }} \
+            /bin/sh -c '
+              set -e
+              
+              echo "=== Stage 3 Bootstrap Build ==="
+              
+              # Step 1: Install busybox symlinks
+              echo "--- Step 1: Installing busybox symlinks ---"
+              busybox --install -s /bin
+              
+              # Verify basic commands
+              echo "Verifying basic commands..."
+              which sh ls cp mv rm mkdir cat echo grep sed awk
+              
+              # Step 2: Install Stage 2 compiler to / (root)
+              # This places bin at /bin, lib at /lib, etc.
+              echo "--- Step 2: Installing Stage 2 compiler to root ---"
+              cp -a /stage2-install/* /
+              
+              # Verify Stage 2 compiler (should be in /bin now)
+              echo "GCC version:"
+              gcc --version
+              echo "G++ version:"
+              g++ --version
+              
+              # Step 3: Install OHOS tools (gawk, make, bash, patch)
+              echo "--- Step 3: Installing OHOS tools ---"
+              cp -a /ohos-tools/bin/* /bin/ 2>/dev/null || true
+              chmod +x /bin/gawk /bin/make /bin/bash /bin/patch 2>/dev/null || true
+              
+              # Verify tools
+              echo "gawk version:"
+              gawk --version | head -1 || echo "gawk not available"
+              echo "make version:"
+              make --version | head -1 || echo "make not available"
+              echo "bash version:"
+              bash --version | head -1 || echo "bash not available"
+              
+              # Step 4: Set up environment
+              echo "--- Step 4: Setting up build environment ---"
+              export CC=gcc
+              export CXX=g++
+              export SHELL=/bin/bash
+              
+              # Step 5: Run bootstrap build
+              # --stage2=/ tells build.sh the stage 2 compiler is at root
+              # --prefix=/ means install output to root as well
+              echo "--- Step 5: Running bootstrap build ---"
+              ./build.sh \
+                --build=${{ matrix.target }} \
+                --host=${{ matrix.target }} \
+                --target=${{ matrix.target }} \
+                --stage2=/ \
+                --prefix=/ohos-gcc/install-stage3 \
+                all 2>&1 | tee build-stage3.log
+              
+              echo "=== Stage 3 Bootstrap completed ==="
+            '
+
+      - name: Verify bootstrap compiler
+        run: |
+          echo "=== Verifying bootstrap compiler ==="
+          
+          # Check if build completed
+          if [ -f "build-stage3.log" ]; then
+            echo "--- Build log tail ---"
+            tail -50 build-stage3.log
+            
+            # Check for success
+            if grep -q "Comparison successful" build-stage3.log; then
+              echo "✓ Bootstrap comparison successful!"
+            elif grep -q "Bootstrap comparison failure" build-stage3.log; then
+              echo "✗ Bootstrap comparison failed!"
+              exit 1
+            fi
+          fi
+
+      - name: Package bootstrap compiler
+        if: success()
+        run: |
+          PACKAGE_NAME="gcc-${{ env.GCC_VERSION }}-bootstrap-${{ matrix.target }}"
+          mkdir -p artifacts
+          
+          # The bootstrap result is in install-stage3/ directory
+          if [ -d "install-stage3" ]; then
+            tar -cJf "artifacts/${PACKAGE_NAME}.tar.xz" -C install-stage3 .
+            cd artifacts
+            sha256sum "${PACKAGE_NAME}.tar.xz" > "${PACKAGE_NAME}.tar.xz.sha256"
+          else
+            echo "Warning: No install-stage3 directory found for packaging"
+            ls -la
+          fi
+
+      - name: Upload bootstrap compiler artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gcc-bootstrap-${{ matrix.target }}
+          path: artifacts/
+          retention-days: 30
+
+      - name: Upload build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs-stage3-${{ matrix.target }}
+          path: |
+            *.log
+            build-ohos/config.log
           retention-days: 7
 
   # Quick syntax and patch validation (runs faster than full build)
