@@ -1,0 +1,24 @@
+From: OHOS GCC Maintainers <ohos-gcc@example.com>
+Subject: [PATCH] genmatch: Add fflush before fclose for fmemopen compatibility
+
+Some libc implementations (like musl in OpenHarmony/OHOS) have a bug
+where fclose() does not properly flush the buffer for fmemopen streams.
+This causes the selftest in genmatch to fail because the buffer remains
+empty after fclose().
+
+Add an explicit fflush() call before fclose() to work around this issue.
+
+diff --git a/gcc/genmatch.cc b/gcc/genmatch.cc
+index 1234567..abcdefg 100644
+--- a/gcc/genmatch.cc
++++ b/gcc/genmatch.cc
+@@ -607,6 +607,9 @@ test_diag_vfprintf (const char *expected, const char *msg, ...)
+   va_start (ap, msg);
+   diag_vfprintf (f, 0, msg, &ap);
+   va_end (ap);
++  /* Some libc implementations (e.g., musl) do not flush the buffer on fclose
++     for fmemopen streams, so we need to explicitly flush first.  */
++  fflush (f);
+   fclose (f);
+   gcc_assert (strcmp (buf, expected) == 0);
+ }
