@@ -810,7 +810,7 @@ jobs:
   # Create release when tagged
   release:
     name: Create Release
-    needs: [build-cross, build-native]
+    needs: [build-cross, build-native, build-bootstrap]
     runs-on: ubuntu-24.04
     if: startsWith(github.ref, 'refs/tags/v')
     
@@ -848,13 +848,15 @@ jobs:
             This release includes:
             - **Cross-compilers**: Run on Linux, compile for OHOS
             - **Native compilers**: Run on OHOS, compile for OHOS (Canadian Cross build)
+            - **Bootstrap compilers**: Self-hosted GCC built and verified on OHOS
             
             ### Packages
             
             | Package | Description |
             |---------|-------------|
             | `gcc-*-cross-*.tar.xz` | Cross-compiler (Linux host) |
-            | `gcc-*-native-*.tar.xz` | Native compiler (OHOS host) |
+            | `gcc-*-native-*.tar.xz` | Native compiler (OHOS host, Canadian Cross) |
+            | `gcc-*-bootstrap-*.tar.xz` | Bootstrap compiler (OHOS self-hosted) |
             
             ### Supported Targets
             - `x86_64-linux-ohos` (x86_64)
