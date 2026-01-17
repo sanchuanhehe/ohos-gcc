@@ -657,44 +657,25 @@ apply_sysroot_patches() {
     fi
 }
 
-# Update config.sub and config.guess to latest versions from GNU config
-# This is needed for OHOS target support (already in upstream config.sub)
+# Update config.sub and config.guess using local copies from config/ directory
+# These files are bundled with the repository and contain OHOS target support
 update_config_scripts() {
     local dir="$1"
-    local config_sub_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.sub"
-    local config_guess_url="https://git.savannah.gnu.org/cgit/config.git/plain/config.guess"
-    local tmp_config_sub="/tmp/config.sub.$$"
-    local tmp_config_guess="/tmp/config.guess.$$"
-    local download_timeout=60
+    local local_config_sub="${SCRIPT_DIR}/config/config.sub"
+    local local_config_guess="${SCRIPT_DIR}/config/config.guess"
     
     msg "Updating config.sub and config.guess in ${dir}..."
     
-    # Download config.sub - fail if download fails
-    msg "  Downloading latest config.sub from GNU..."
-    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_sub_url}" -o "${tmp_config_sub}"; then
-        rm -f "${tmp_config_sub}"
-        error "Failed to download config.sub from ${config_sub_url}"
+    # Verify local config.sub exists and has OHOS support
+    if [ ! -f "${local_config_sub}" ]; then
+        error "Local config.sub not found at ${local_config_sub}"
     fi
     
-    # Verify downloaded file has proper OHOS support (linux-ohos pattern)
-    if ! grep -qE 'linux-ohos' "${tmp_config_sub}" 2>/dev/null; then
-        rm -f "${tmp_config_sub}"
-        error "Downloaded config.sub doesn't have OHOS support"
+    if ! grep -qE 'linux-ohos' "${local_config_sub}" 2>/dev/null; then
+        error "Local config.sub doesn't have OHOS support"
     fi
     
-    msg "  Downloaded config.sub verified with OHOS support"
-    
-    # Download config.guess - fail if download fails
-    msg "  Downloading latest config.guess from GNU..."
-    if ! curl -sL --connect-timeout "${download_timeout}" --max-time 120 "${config_guess_url}" -o "${tmp_config_guess}"; then
-        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
-        error "Failed to download config.guess from ${config_guess_url}"
-    fi
-    
-    if [ ! -s "${tmp_config_guess}" ]; then
-        rm -f "${tmp_config_sub}" "${tmp_config_guess}"
-        error "Downloaded config.guess is empty"
-    fi
+    msg "  Using local config.sub with OHOS support"
     
     # Find all config.sub files and update them if needed
     local updated=0
@@ -707,7 +688,7 @@ update_config_scripts() {
         fi
         
         # Update config.sub
-        cp "${tmp_config_sub}" "${config_file}"
+        cp "${local_config_sub}" "${config_file}"
         chmod +x "${config_file}"
         updated=$((updated + 1))
         
@@ -715,14 +696,11 @@ update_config_scripts() {
         local config_dir guess_file
         config_dir=$(dirname "${config_file}")
         guess_file="${config_dir}/config.guess"
-        if [ -f "${guess_file}" ] && [ -s "${tmp_config_guess}" ]; then
-            cp "${tmp_config_guess}" "${guess_file}"
+        if [ -f "${guess_file}" ] && [ -f "${local_config_guess}" ]; then
+            cp "${local_config_guess}" "${guess_file}"
             chmod +x "${guess_file}"
         fi
     done < <(find "${dir}" -name "config.sub" -type f 2>/dev/null)
-    
-    # Cleanup
-    rm -f "${tmp_config_sub}" "${tmp_config_guess}"
     
     msg "  Updated ${updated} config.sub files, ${skipped} already had OHOS support"
 }
