@@ -188,7 +188,7 @@ error() {
 # Normalize a path to absolute form
 # Usage: normalized=$(normalize_path "/some/path" [must_exist])
 # If must_exist is "true", uses readlink -f (path must exist)
-# Otherwise uses realpath -m or manual conversion (path can be non-existent)
+# Otherwise uses manual conversion (path can be non-existent)
 normalize_path() {
     local path="$1"
     local must_exist="${2:-false}"
@@ -198,14 +198,12 @@ normalize_path() {
     if [ "${must_exist}" = "true" ]; then
         readlink -f "${path}" || return 1
     else
-        if command -v realpath >/dev/null 2>&1; then
-            realpath -m "${path}"
-        else
-            case "${path}" in
-                /*) echo "${path}" ;;
-                *)  echo "${PWD}/${path}" ;;
-            esac
-        fi
+        # Convert to absolute path manually (works with BusyBox)
+        # Don't use realpath -m as BusyBox doesn't support it
+        case "${path}" in
+            /*) echo "${path}" ;;
+            *)  echo "${PWD}/${path}" ;;
+        esac
     fi
 }
 
