@@ -282,19 +282,27 @@ Use --stage2=/path/to/stage2/install to specify it."
 
     msg "Checking stage 2 toolchain at ${STAGE2_PREFIX}..."
 
+    # Handle STAGE2_PREFIX=/ to avoid double slashes like //bin/gcc
+    local prefix_bin
+    if [ "${STAGE2_PREFIX}" = "/" ]; then
+        prefix_bin="/bin"
+    else
+        prefix_bin="${STAGE2_PREFIX}/bin"
+    fi
+
     # Stage 2 produces native tools, check for both prefixed and unprefixed names
-    local cc="${STAGE2_PREFIX}/bin/gcc"
-    local cxx="${STAGE2_PREFIX}/bin/g++"
-    local ar="${STAGE2_PREFIX}/bin/ar"
-    local as="${STAGE2_PREFIX}/bin/as"
-    local ld="${STAGE2_PREFIX}/bin/ld"
+    local cc="${prefix_bin}/gcc"
+    local cxx="${prefix_bin}/g++"
+    local ar="${prefix_bin}/ar"
+    local as="${prefix_bin}/as"
+    local ld="${prefix_bin}/ld"
 
     # Fall back to target-prefixed names if unprefixed not found
-    [ ! -x "${cc}" ] && cc="${STAGE2_PREFIX}/bin/${CTARGET}-gcc"
-    [ ! -x "${cxx}" ] && cxx="${STAGE2_PREFIX}/bin/${CTARGET}-g++"
-    [ ! -x "${ar}" ] && ar="${STAGE2_PREFIX}/bin/${CTARGET}-ar"
-    [ ! -x "${as}" ] && as="${STAGE2_PREFIX}/bin/${CTARGET}-as"
-    [ ! -x "${ld}" ] && ld="${STAGE2_PREFIX}/bin/${CTARGET}-ld"
+    [ ! -x "${cc}" ] && cc="${prefix_bin}/${CTARGET}-gcc"
+    [ ! -x "${cxx}" ] && cxx="${prefix_bin}/${CTARGET}-g++"
+    [ ! -x "${ar}" ] && ar="${prefix_bin}/${CTARGET}-ar"
+    [ ! -x "${as}" ] && as="${prefix_bin}/${CTARGET}-as"
+    [ ! -x "${ld}" ] && ld="${prefix_bin}/${CTARGET}-ld"
 
     for tool in "${cc}" "${cxx}" "${ar}" "${as}" "${ld}"; do
         if [ ! -x "${tool}" ]; then
@@ -419,30 +427,38 @@ setup_canadian_cross_env() {
 setup_native_ohos_env() {
     msg "Setting up native OHOS (stage 3) build environment..."
 
+    # Handle STAGE2_PREFIX=/ to avoid double slashes like //bin/gcc
+    local prefix_bin
+    if [ "${STAGE2_PREFIX}" = "/" ]; then
+        prefix_bin="/bin"
+    else
+        prefix_bin="${STAGE2_PREFIX}/bin"
+    fi
+
     # Use stage 2 native compiler as the host/target compiler
     # Try unprefixed first, fall back to prefixed
-    if [ -x "${STAGE2_PREFIX}/bin/gcc" ]; then
-        export CC="${STAGE2_PREFIX}/bin/gcc"
-        export CXX="${STAGE2_PREFIX}/bin/g++"
-        export AR="${STAGE2_PREFIX}/bin/ar"
-        export AS="${STAGE2_PREFIX}/bin/as"
-        export LD="${STAGE2_PREFIX}/bin/ld"
-        export NM="${STAGE2_PREFIX}/bin/nm"
-        export RANLIB="${STAGE2_PREFIX}/bin/ranlib"
-        export STRIP="${STAGE2_PREFIX}/bin/strip"
-        export OBJCOPY="${STAGE2_PREFIX}/bin/objcopy"
-        export OBJDUMP="${STAGE2_PREFIX}/bin/objdump"
+    if [ -x "${prefix_bin}/gcc" ]; then
+        export CC="${prefix_bin}/gcc"
+        export CXX="${prefix_bin}/g++"
+        export AR="${prefix_bin}/ar"
+        export AS="${prefix_bin}/as"
+        export LD="${prefix_bin}/ld"
+        export NM="${prefix_bin}/nm"
+        export RANLIB="${prefix_bin}/ranlib"
+        export STRIP="${prefix_bin}/strip"
+        export OBJCOPY="${prefix_bin}/objcopy"
+        export OBJDUMP="${prefix_bin}/objdump"
     else
-        export CC="${STAGE2_PREFIX}/bin/${CTARGET}-gcc"
-        export CXX="${STAGE2_PREFIX}/bin/${CTARGET}-g++"
-        export AR="${STAGE2_PREFIX}/bin/${CTARGET}-ar"
-        export AS="${STAGE2_PREFIX}/bin/${CTARGET}-as"
-        export LD="${STAGE2_PREFIX}/bin/${CTARGET}-ld"
-        export NM="${STAGE2_PREFIX}/bin/${CTARGET}-nm"
-        export RANLIB="${STAGE2_PREFIX}/bin/${CTARGET}-ranlib"
-        export STRIP="${STAGE2_PREFIX}/bin/${CTARGET}-strip"
-        export OBJCOPY="${STAGE2_PREFIX}/bin/${CTARGET}-objcopy"
-        export OBJDUMP="${STAGE2_PREFIX}/bin/${CTARGET}-objdump"
+        export CC="${prefix_bin}/${CTARGET}-gcc"
+        export CXX="${prefix_bin}/${CTARGET}-g++"
+        export AR="${prefix_bin}/${CTARGET}-ar"
+        export AS="${prefix_bin}/${CTARGET}-as"
+        export LD="${prefix_bin}/${CTARGET}-ld"
+        export NM="${prefix_bin}/${CTARGET}-nm"
+        export RANLIB="${prefix_bin}/${CTARGET}-ranlib"
+        export STRIP="${prefix_bin}/${CTARGET}-strip"
+        export OBJCOPY="${prefix_bin}/${CTARGET}-objcopy"
+        export OBJDUMP="${prefix_bin}/${CTARGET}-objdump"
     fi
 
     # For native build, all tools are the same
@@ -457,8 +473,10 @@ setup_native_ohos_env() {
     export OBJCOPY_FOR_TARGET="${OBJCOPY}"
     export OBJDUMP_FOR_TARGET="${OBJDUMP}"
 
-    # Add stage 2 toolchain to PATH
-    export PATH="${STAGE2_PREFIX}/bin:${PATH}"
+    # Add stage 2 toolchain to PATH (avoid adding / to PATH)
+    if [ "${STAGE2_PREFIX}" != "/" ]; then
+        export PATH="${prefix_bin}:${PATH}"
+    fi
 
     msg "Native OHOS environment configured:"
     echo "  CC=${CC}"
@@ -647,10 +665,14 @@ ensure_binutils() {
 apply_sysroot_patches() {
     if [ -d "${SCRIPT_DIR}/sysroot-patches" ]; then
         msg "Applying sysroot patches..."
+        local current_dir
+        current_dir=$(pwd)
         for patch in "${SCRIPT_DIR}"/sysroot-patches/*.patch; do
             [ -f "${patch}" ] || continue
             msg "Applying $(basename "${patch}")..."
-            patch -d "${SYSROOT}" -p0 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
+            # BusyBox patch doesn't support -d, so cd into the directory instead
+            cd "${SYSROOT}" && patch -p0 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
+            cd "${current_dir}"
         done
     fi
 }
