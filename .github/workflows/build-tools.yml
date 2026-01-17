@@ -1,4 +1,4 @@
-name: Build OHOS Tools (make, bash)
+name: Build OHOS Tools (gawk, make, bash, patch)
 
 on:
   workflow_run:
@@ -17,9 +17,6 @@ on:
 
 env:
   GCC_VERSION: '15.2.0'
-  MAKE_VERSION: '4.4.1'
-  BASH_VERSION: '5.2.32'
-  NCURSES_VERSION: '6.4'
 
 jobs:
   build-tools:
@@ -75,168 +72,35 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget curl
+          sudo apt-get install -y wget curl xz-utils
 
-      - name: Create build directories
+      - name: Prepare NDK sysroot
         run: |
-          mkdir -p downloads build-tools install-tools
+          # Use build.sh to download and prepare NDK sysroot
+          # This provides the headers and libraries needed for cross-compilation
+          ./build.sh --target=${{ matrix.target }} prepare_ndk
+          
+          echo "=== NDK sysroot prepared ==="
+          ls -la ndk/sysroot/${{ matrix.target }}/usr/lib/ | head -10
 
-      - name: Download tool sources
+      - name: Build all tools using build-tools.sh
         run: |
-          cd downloads
-          wget -q "https://ftp.gnu.org/gnu/make/make-${{ env.MAKE_VERSION }}.tar.gz"
-          wget -q "https://ftp.gnu.org/gnu/bash/bash-${{ env.BASH_VERSION }}.tar.gz"
-          wget -q "https://ftp.gnu.org/gnu/ncurses/ncurses-${{ env.NCURSES_VERSION }}.tar.gz"
-
-      - name: Extract sources
-        run: |
-          cd build-tools
-          tar -xzf ../downloads/make-${{ env.MAKE_VERSION }}.tar.gz
-          tar -xzf ../downloads/bash-${{ env.BASH_VERSION }}.tar.gz
-          tar -xzf ../downloads/ncurses-${{ env.NCURSES_VERSION }}.tar.gz
-
-      - name: Update config.sub for OHOS support
-        run: |
-          # Copy our config.sub with OHOS support to all source directories
-          for dir in build-tools/make-${{ env.MAKE_VERSION }} build-tools/bash-${{ env.BASH_VERSION }} build-tools/ncurses-${{ env.NCURSES_VERSION }}; do
-            find "$dir" -name "config.sub" -type f | while read -r file; do
-              cp config/config.sub "$file"
-              echo "Updated: $file"
-            done
-          done
-
-      - name: Patch make for OHOS compatibility
-        run: |
-          cd build-tools/make-${{ env.MAKE_VERSION }}
-          # Fix K&R style function declarations that conflict with OHOS headers
-          find . -name "*.c" -o -name "*.h" | xargs sed -i \
-            -e 's/extern char \*getenv ();/extern char *getenv (const char *);/g' \
-            -e 's/extern int getopt ();/extern int getopt (int, char *const*, const char *);/g' \
-            2>/dev/null || true
-
-      - name: Build GNU Make
-        run: |
-          export CC="${PWD}/install/bin/${{ matrix.target }}-gcc"
-          export AR="${PWD}/install/bin/${{ matrix.target }}-ar"
-          export RANLIB="${PWD}/install/bin/${{ matrix.target }}-ranlib"
-          export STRIP="${PWD}/install/bin/${{ matrix.target }}-strip"
+          # Use build-tools.sh to build gawk, make, bash, patch
+          # It will use the cross-compiler from ./install and sysroot from ./ndk/sysroot
+          ./build-tools.sh --target=${{ matrix.target }} --stage1=./install all
           
-          mkdir -p build-tools/build-make
-          cd build-tools/build-make
-          
-          CFLAGS="-O2 -static -D_GNU_SOURCE" \
-          LDFLAGS="-static" \
-          CC="$CC" AR="$AR" RANLIB="$RANLIB" \
-          ../make-${{ env.MAKE_VERSION }}/configure \
-            --host=${{ matrix.target }} \
-            --prefix="${PWD}/../../install-tools" \
-            --disable-nls \
-            --disable-dependency-tracking \
-            --without-guile
-          
-          make -j$(nproc)
-          make install
-          
-          # Strip binary
-          $STRIP ../../install-tools/bin/make || true
-          
-          echo "=== Make built ==="
-          file ../../install-tools/bin/make
-          ls -lh ../../install-tools/bin/make
-
-      - name: Build ncurses (bash dependency)
-        run: |
-          export CC="${PWD}/install/bin/${{ matrix.target }}-gcc"
-          export CXX="${PWD}/install/bin/${{ matrix.target }}-g++"
-          export AR="${PWD}/install/bin/${{ matrix.target }}-ar"
-          export RANLIB="${PWD}/install/bin/${{ matrix.target }}-ranlib"
-          
-          mkdir -p build-tools/build-ncurses
-          cd build-tools/build-ncurses
-          
-          CFLAGS="-O2" \
-          CC="$CC" CXX="$CXX" AR="$AR" RANLIB="$RANLIB" \
-          ../ncurses-${{ env.NCURSES_VERSION }}/configure \
-            --host=${{ matrix.target }} \
-            --prefix="${PWD}/../../install-tools" \
-            --without-cxx \
-            --without-cxx-binding \
-            --without-ada \
-            --without-manpages \
-            --without-progs \
-            --without-tests \
-            --disable-database \
-            --disable-termcap \
-            --with-fallbacks=vt100,vt102,xterm,xterm-256color,linux \
-            --enable-termcap \
-            --enable-static \
-            --disable-shared \
-            --with-normal
-          
-          make -j$(nproc)
-          make install
-          
-          echo "=== ncurses built ==="
-
-      - name: Build Bash
-        run: |
-          export CC="${PWD}/install/bin/${{ matrix.target }}-gcc"
-          export AR="${PWD}/install/bin/${{ matrix.target }}-ar"
-          export RANLIB="${PWD}/install/bin/${{ matrix.target }}-ranlib"
-          export STRIP="${PWD}/install/bin/${{ matrix.target }}-strip"
-          
-          mkdir -p build-tools/build-bash
-          cd build-tools/build-bash
-          
-          # Create config.cache for cross-compilation
-          cat > config.cache << 'EOF'
-          ac_cv_func_mmap_fixed_mapped=yes
-          ac_cv_func_strcoll_works=yes
-          ac_cv_func_working_mktime=yes
-          bash_cv_func_sigsetjmp=present
-          bash_cv_getcwd_malloc=yes
-          bash_cv_job_control_missing=present
-          bash_cv_printf_a_format=yes
-          bash_cv_sys_named_pipes=present
-          bash_cv_ulimit_maxfds=yes
-          bash_cv_under_sys_siglist=yes
-          bash_cv_unusable_rtsigs=no
-          gt_cv_int_divbyzero_sigfpe=yes
-          EOF
-          
-          CFLAGS="-O2 -static -I${PWD}/../../install-tools/include -I${PWD}/../../install-tools/include/ncurses -std=gnu89 -Wno-error" \
-          LDFLAGS="-static -L${PWD}/../../install-tools/lib" \
-          LIBS="-lncurses" \
-          CC="$CC" AR="$AR" RANLIB="$RANLIB" \
-          ../bash-${{ env.BASH_VERSION }}/configure \
-            --host=${{ matrix.target }} \
-            --prefix="${PWD}/../../install-tools" \
-            --cache-file=config.cache \
-            --enable-static-link \
-            --without-bash-malloc \
-            --disable-nls \
-            --disable-rpath \
-            --enable-readline \
-            --with-curses \
-            --with-installed-readline=no
-          
-          make -j$(nproc)
-          make install
-          
-          # Strip binary
-          $STRIP ../../install-tools/bin/bash || true
-          
-          echo "=== Bash built ==="
-          file ../../install-tools/bin/bash
-          ls -lh ../../install-tools/bin/bash
+          echo "=== Built tools ==="
+          ls -lh install-tools/bin/
 
       - name: Test built tools
         run: |
-          echo "=== Testing make ==="
-          file install-tools/bin/make
-          
-          echo "=== Testing bash ==="
-          file install-tools/bin/bash
+          echo "=== Testing tools ==="
+          for tool in gawk awk make bash patch; do
+            if [ -f "install-tools/bin/$tool" ]; then
+              echo "--- $tool ---"
+              file "install-tools/bin/$tool"
+            fi
+          done
           
           echo "=== Built tools summary ==="
           ls -lh install-tools/bin/
@@ -244,7 +108,8 @@ jobs:
       - name: Create tools archive
         run: |
           cd install-tools
-          tar -cJf "../ohos-tools-${{ matrix.target }}.tar.xz" bin/make bin/bash
+          # Archive all built binaries
+          tar -cJf "../ohos-tools-${{ matrix.target }}.tar.xz" bin/
           ls -lh "../ohos-tools-${{ matrix.target }}.tar.xz"
 
       - name: Upload tools artifact
@@ -265,14 +130,18 @@ jobs:
         run: |
           echo "=== OHOS Tools Build Summary ==="
           echo ""
-          echo "Tools built:"
-          echo "  - GNU Make ${{ env.MAKE_VERSION }}"
-          echo "  - GNU Bash ${{ env.BASH_VERSION }}"
+          echo "Tools built using build-tools.sh:"
+          echo "  - GNU Awk (gawk)"
+          echo "  - GNU Make"
+          echo "  - GNU Bash"
+          echo "  - GNU Patch"
           echo ""
           echo "Artifacts available:"
           echo "  - ohos-tools-x86_64-linux-ohos"
           echo "  - ohos-tools-aarch64-linux-ohos"
           echo ""
           echo "To use in OpenHarmony container:"
-          echo "  docker cp make CONTAINER:/bin/"
+          echo "  docker cp gawk CONTAINER:/usr/bin/"
+          echo "  docker cp make CONTAINER:/usr/bin/"
           echo "  docker cp bash CONTAINER:/bin/"
+          echo "  docker cp patch CONTAINER:/usr/bin/"
