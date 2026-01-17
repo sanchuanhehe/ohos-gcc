@@ -478,13 +478,11 @@ setup_native_ohos_env() {
         export PATH="${prefix_bin}:${PATH}"
     fi
 
-    # For native OHOS builds, we need to pass --sysroot to the compiler
-    # because the installed GCC may have been built with a different sysroot path
-    if [ -n "${SYSROOT}" ] && [ -d "${SYSROOT}" ]; then
-        export CFLAGS="${CFLAGS:--O2 -g} --sysroot=${SYSROOT}"
-        export CXXFLAGS="${CXXFLAGS:--O2 -g} --sysroot=${SYSROOT}"
-        export LDFLAGS="${LDFLAGS:-} --sysroot=${SYSROOT}"
-    fi
+    # For native OHOS builds, we do NOT set --sysroot in CFLAGS
+    # The system libraries are already in /lib and /usr/lib
+    # Using NDK sysroot would pull in Clang-specific fortify headers that break GCC
+    export CFLAGS="${CFLAGS:--O2 -g}"
+    export CXXFLAGS="${CXXFLAGS:--O2 -g}"
 
     msg "Native OHOS environment configured:"
     echo "  CC=${CC}"
@@ -620,7 +618,9 @@ build_binutils() {
         configure_args+=("--program-prefix=${CTARGET}-")
     fi
 
-    if [ -n "${SYSROOT}" ]; then
+    # Only pass --with-sysroot for cross-compilation, not for native OHOS builds
+    # Native OHOS builds use system libraries directly
+    if [ -n "${SYSROOT}" ] && ! is_native_ohos_build; then
         configure_args+=("--with-sysroot=${SYSROOT}")
     fi
 
@@ -673,14 +673,36 @@ ensure_binutils() {
 
 apply_sysroot_patches() {
     if [ -d "${SCRIPT_DIR}/sysroot-patches" ]; then
-        msg "Applying sysroot patches..."
+        # For native OHOS builds, apply patches to system headers
+        # For cross-compilation, apply to NDK sysroot
+        local patch_target
+        if is_native_ohos_build; then
+            # Native build: patch system headers in /usr/include
+            if [ -d "/usr/include/fortify" ]; then
+                patch_target="/"
+                msg "Applying sysroot patches to system headers..."
+            else
+                msg "System headers not found at /usr/include/fortify, skipping sysroot patches"
+                return 0
+            fi
+        else
+            # Cross-compilation: patch NDK sysroot
+            if [ -n "${SYSROOT}" ] && [ -d "${SYSROOT}" ]; then
+                patch_target="${SYSROOT}"
+                msg "Applying sysroot patches to ${SYSROOT}..."
+            else
+                msg "SYSROOT not set or doesn't exist, skipping sysroot patches"
+                return 0
+            fi
+        fi
+
         local current_dir
         current_dir=$(pwd)
         for patch in "${SCRIPT_DIR}"/sysroot-patches/*.patch; do
             [ -f "${patch}" ] || continue
             msg "Applying $(basename "${patch}")..."
             # BusyBox patch doesn't support -d, so cd into the directory instead
-            cd "${SYSROOT}" && patch -p0 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
+            cd "${patch_target}" && patch -p0 -N -i "${patch}" || msg "Patch $(basename "${patch}") already applied or failed"
             cd "${current_dir}"
         done
     fi
