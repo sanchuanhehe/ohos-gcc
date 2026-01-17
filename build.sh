@@ -617,10 +617,16 @@ build_binutils() {
         configure_args+=("--program-prefix=${CTARGET}-")
     fi
 
-    # Only pass --with-sysroot for cross-compilation, not for native OHOS builds
-    # Native OHOS builds use system libraries directly
-    if [ -n "${SYSROOT}" ] && ! is_native_ohos_build; then
+    # Configure sysroot based on build type:
+    # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    # - Stage 2 (Canadian Cross): use "/" as sysroot so binutils uses correct paths
+    # - Stage 3 (native OHOS): no sysroot needed, uses system paths directly
+    if [ -n "${SYSROOT}" ] && ! is_native_ohos_build && ! is_canadian_cross; then
+        # Stage 1: Cross-compiler needs explicit sysroot
         configure_args+=("--with-sysroot=${SYSROOT}")
+    elif is_canadian_cross; then
+        # Stage 2: Canadian Cross builds native OHOS binutils with sysroot=/
+        configure_args+=("--with-sysroot=/")
     fi
 
     # For Canadian Cross builds, disable plugins to avoid LTO issues
@@ -939,8 +945,20 @@ configure_gcc() {
         # debug info between stage2 and stage3. Use empty config for simple bootstrap.
         cross_configure+=("--with-build-config=")
     fi
+    
+    # Configure sysroot based on build type:
+    # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    # - Stage 2 (Canadian Cross): use "/" as sysroot so the compiler looks for
+    #   crt*.o in /usr/lib/ when running natively on OHOS
+    # - Stage 3 (native OHOS): inherits sysroot from Stage 2 compiler
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
+        # Stage 1: Cross-compiler needs explicit sysroot for target libraries
         cross_configure+=("--with-sysroot=${SYSROOT}")
+    elif is_canadian_cross; then
+        # Stage 2: Canadian Cross builds a native OHOS compiler.
+        # Configure with sysroot=/ so the compiler will look for crt*.o
+        # in /usr/lib/ (via STARTFILE_SPEC %R expansion) when running on OHOS.
+        cross_configure+=("--with-sysroot=/")
     fi
     
     # For Canadian Cross builds or native OHOS builds, use bundled zlib

@@ -759,7 +759,24 @@ jobs:
                 --prefix=/ohos-gcc/install-stage3 \
                 all 2>&1 | tee build-stage3.log; then
                 echo "=== BUILD FAILED ==="
-                echo "Last 100 lines of build log:"
+                echo ""
+                echo "--- Debugging: GCC search paths ---"
+                /bin/gcc -v 2>&1 || true
+                /bin/gcc -print-search-dirs 2>&1 || true
+                echo ""
+                echo "--- Debugging: Check if crt*.o exist ---"
+                ls -la /usr/lib/crt*.o 2>/dev/null || echo "No crt*.o in /usr/lib/"
+                ls -la /lib/crt*.o 2>/dev/null || echo "No crt*.o in /lib/"
+                echo ""
+                echo "--- Debugging: config.log (if exists) ---"
+                if [ -f "build-binutils/config.log" ]; then
+                  tail -200 build-binutils/config.log
+                fi
+                if [ -f "build-ohos/config.log" ]; then
+                  tail -200 build-ohos/config.log
+                fi
+                echo ""
+                echo "--- Last 100 lines of build log ---"
                 tail -100 build-stage3.log
                 exit 1
               fi
@@ -817,6 +834,7 @@ jobs:
           path: |
             *.log
             build-ohos/config.log
+            build-binutils/config.log
           retention-days: 7
 
   # Quick syntax and patch validation (runs faster than full build)
