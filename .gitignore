@@ -2,10 +2,11 @@ build-ohos
 ndk
 binutils-2*
 gcc-15*
-build-*
 install
+build-ohos
+build-tools
+build-binutils
 build.log
-ndk-llvm.tar.gz
-x86_64-linux-ohos-gcc-15.2.0.tar.gz
 install*
 *.log
+*.tar.gz
