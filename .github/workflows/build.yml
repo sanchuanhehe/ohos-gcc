@@ -686,6 +686,7 @@ jobs:
             ${{ matrix.container_image }} \
             /bin/sh -c '
               set -e
+              set -o pipefail  # Ensure pipeline returns error if build.sh fails
               
               echo "=== Stage 3 Bootstrap Build ==="
               
@@ -750,15 +751,20 @@ jobs:
               
               # Step 6: Run bootstrap build
               echo "--- Step 6: Running bootstrap build ---"
-              ./build.sh \
+              if ! ./build.sh \
                 --build=${{ matrix.target }} \
                 --host=${{ matrix.target }} \
                 --target=${{ matrix.target }} \
                 --stage2=/ \
                 --prefix=/ohos-gcc/install-stage3 \
-                all 2>&1 | tee build-stage3.log
+                all 2>&1 | tee build-stage3.log; then
+                echo "=== BUILD FAILED ==="
+                echo "Last 100 lines of build log:"
+                tail -100 build-stage3.log
+                exit 1
+              fi
               
-              echo "=== Stage 3 Bootstrap completed ==="
+              echo "=== Stage 3 Bootstrap completed successfully ==="
             '
 
       - name: Verify bootstrap compiler
