@@ -478,8 +478,17 @@ setup_native_ohos_env() {
         export PATH="${prefix_bin}:${PATH}"
     fi
 
+    # For native OHOS builds, we need to pass --sysroot to the compiler
+    # because the installed GCC may have been built with a different sysroot path
+    if [ -n "${SYSROOT}" ] && [ -d "${SYSROOT}" ]; then
+        export CFLAGS="${CFLAGS:--O2 -g} --sysroot=${SYSROOT}"
+        export CXXFLAGS="${CXXFLAGS:--O2 -g} --sysroot=${SYSROOT}"
+        export LDFLAGS="${LDFLAGS:-} --sysroot=${SYSROOT}"
+    fi
+
     msg "Native OHOS environment configured:"
     echo "  CC=${CC}"
+    echo "  CFLAGS=${CFLAGS}"
     echo "  CBUILD=${CBUILD}"
     echo "  CHOST=${CHOST}"
     echo "  CTARGET=${CTARGET}"
