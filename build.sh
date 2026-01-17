@@ -624,15 +624,18 @@ build_binutils() {
 
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
-    #   If --relocatable-sysroot is set, use relative path for distributable toolchain
+    #   If --relocatable-sysroot is set, use a subdirectory of exec_prefix so GCC
+    #   automatically makes the sysroot path relocatable when the installation moves.
+    #   Per GCC docs: "If the specified directory is a subdirectory of ${exec_prefix},
+    #   then it will be found relative to the GCC binaries if the installation tree is moved."
     # - Stage 2 (Canadian Cross): use "/" as sysroot so binutils uses correct paths
     # - Stage 3 (native OHOS): no sysroot needed, uses system paths directly
     if [ -n "${SYSROOT}" ] && ! is_native_ohos_build && ! is_canadian_cross; then
         # Stage 1: Cross-compiler needs sysroot
         if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
-            # Relocatable: use path relative to exec_prefix for distributable toolchain
-            # Result: <prefix>/<target>/sysroot (e.g., /opt/ohos-gcc/aarch64-linux-ohos/sysroot)
-            configure_args+=("--with-sysroot=\${exec_prefix}/\${target_alias}/sysroot")
+            # Relocatable: use absolute path under INSTALL_PREFIX
+            # GCC automatically makes sysroot relocatable when it's under exec_prefix
+            configure_args+=("--with-sysroot=${INSTALL_PREFIX}/${CTARGET}/sysroot")
         else
             # Absolute: use explicit sysroot path (for CI builds)
             configure_args+=("--with-sysroot=${SYSROOT}")
@@ -961,16 +964,21 @@ configure_gcc() {
     
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
-    #   If --relocatable-sysroot is set, use relative path for distributable toolchain
+    #   If --relocatable-sysroot is set, use a subdirectory of exec_prefix so GCC
+    #   automatically makes the sysroot path relocatable when the installation moves.
+    #   Per GCC docs: "If the specified directory is a subdirectory of ${exec_prefix},
+    #   then it will be found relative to the GCC binaries if the installation tree is moved."
     # - Stage 2 (Canadian Cross): use "/" as sysroot so the compiler looks for
     #   crt*.o in /usr/lib/ when running natively on OHOS
     # - Stage 3 (native OHOS): inherits sysroot from Stage 2 compiler
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
         # Stage 1: Cross-compiler needs sysroot for target libraries
         if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
-            # Relocatable: use path relative to exec_prefix for distributable toolchain
-            # Result: <prefix>/<target>/sysroot (e.g., /opt/ohos-gcc/aarch64-linux-ohos/sysroot)
-            cross_configure+=("--with-sysroot=\${exec_prefix}/\${target_alias}/sysroot")
+            # Relocatable: use absolute path under INSTALL_PREFIX for runtime
+            # GCC automatically makes sysroot relocatable when it's under exec_prefix
+            # --with-build-sysroot tells GCC where to find headers/libs during build
+            cross_configure+=("--with-sysroot=${INSTALL_PREFIX}/${CTARGET}/sysroot")
+            cross_configure+=("--with-build-sysroot=${SYSROOT}")
         else
             # Absolute: use explicit sysroot path (for CI builds)
             cross_configure+=("--with-sysroot=${SYSROOT}")
