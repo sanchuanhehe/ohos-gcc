@@ -15,6 +15,7 @@ MAKE_VERSION="${MAKE_VERSION:-4.4.1}"
 OHOS_BASH_VERSION="${OHOS_BASH_VERSION:-5.2.32}"
 NCURSES_VERSION="${NCURSES_VERSION:-6.4}"  # bash readline dependency
 PATCH_VERSION="${PATCH_VERSION:-2.7.6}"
+GAWK_VERSION="${GAWK_VERSION:-5.3.0}"
 
 # Directories
 STAGE1_PREFIX="${STAGE1_PREFIX:-${SCRIPT_DIR}/install}"
@@ -37,6 +38,7 @@ MAKE_URL="https://ftp.gnu.org/gnu/make/make-${MAKE_VERSION}.tar.gz"
 BASH_URL="https://ftp.gnu.org/gnu/bash/bash-${OHOS_BASH_VERSION}.tar.gz"
 NCURSES_URL="https://ftp.gnu.org/gnu/ncurses/ncurses-${NCURSES_VERSION}.tar.gz"
 PATCH_URL="https://ftp.gnu.org/gnu/patch/patch-${PATCH_VERSION}.tar.xz"
+GAWK_URL="https://ftp.gnu.org/gnu/gawk/gawk-${GAWK_VERSION}.tar.xz"
 
 # Local config.sub with OHOS support
 CONFIG_SUB="${SCRIPT_DIR}/config/config.sub"
@@ -306,6 +308,79 @@ EOF
     ls -lh "${TOOLS_INSTALL_DIR}/bin/bash"
 }
 
+build_gawk() {
+    msg "Building GNU Awk ${GAWK_VERSION} for ${TARGET}..."
+    
+    local src_dir="${TOOLS_BUILD_DIR}/gawk-${GAWK_VERSION}"
+    local build_dir="${TOOLS_BUILD_DIR}/build-gawk"
+    
+    # Download
+    download "$GAWK_URL" "${DOWNLOAD_DIR}/gawk-${GAWK_VERSION}.tar.xz"
+    
+    # Extract (force re-extract to apply patches)
+    rm -rf "$src_dir"
+    msg "Extracting gawk source..."
+    tar -xJf "${DOWNLOAD_DIR}/gawk-${GAWK_VERSION}.tar.xz" -C "${TOOLS_BUILD_DIR}"
+    
+    # Update config.sub to support OHOS
+    update_config_sub "$src_dir"
+    
+    # Patch K&R style declarations that conflict with OHOS musl headers
+    msg "Patching gawk source for OHOS compatibility..."
+    
+    # Fix getopt.h - remove old-style getopt declaration
+    if [ -f "$src_dir/support/getopt.h" ]; then
+        sed -i 's/extern int getopt ();/extern int getopt (int argc, char *const *argv, const char *optstring);/' \
+            "$src_dir/support/getopt.h"
+    fi
+    
+    # Fix getopt.c - remove old-style getenv declaration  
+    if [ -f "$src_dir/support/getopt.c" ]; then
+        sed -i 's/extern char \*getenv ();/extern char *getenv (const char *);/' \
+            "$src_dir/support/getopt.c"
+    fi
+    
+    # Build
+    rm -rf "$build_dir"
+    mkdir -p "$build_dir"
+    cd "$build_dir"
+    
+    msg "Configuring gawk..."
+    # Use -Wno-error flags to allow old K&R style code to compile
+    # gawk has many old-style function pointer casts that modern compilers reject
+    # Disable PMA (Persistent Memory Allocator) as OHOS musl lacks truncl()
+    CFLAGS="-O2 -static -D_GNU_SOURCE -Wno-error=incompatible-pointer-types -Wno-error=int-conversion" \
+    LDFLAGS="-static" \
+    LIBS="-lm" \
+    CC="$CC" \
+    AR="$AR" \
+    RANLIB="$RANLIB" \
+    "$src_dir/configure" \
+        --host="${TARGET}" \
+        --prefix="${TOOLS_INSTALL_DIR}" \
+        --disable-nls \
+        --disable-extensions \
+        --disable-pma \
+        --without-readline \
+        --without-mpfr
+    
+    msg "Compiling gawk..."
+    make -j"$(nproc)"
+    
+    msg "Installing gawk..."
+    make install
+    
+    # Strip binary
+    "$STRIP" "${TOOLS_INSTALL_DIR}/bin/gawk" 2>/dev/null || true
+    
+    # Create awk symlink
+    ln -sf gawk "${TOOLS_INSTALL_DIR}/bin/awk"
+    
+    msg "Gawk built successfully!"
+    file "${TOOLS_INSTALL_DIR}/bin/gawk"
+    ls -lh "${TOOLS_INSTALL_DIR}/bin/gawk"
+}
+
 build_patch() {
     msg "Building GNU Patch ${PATCH_VERSION} for ${TARGET}..."
     
@@ -381,6 +456,7 @@ EOF
 
 build_all() {
     msg "Building all tools for ${TARGET}..."
+    build_gawk
     build_make
     build_bash
     build_patch
@@ -396,6 +472,8 @@ build_all() {
     ls -lh "${TOOLS_INSTALL_DIR}/bin/"
     msg ""
     msg "To use in OHOS container:"
+    msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/gawk CONTAINER:/bin/"
+    msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/awk CONTAINER:/bin/"
     msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/make CONTAINER:/bin/"
     msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/bash CONTAINER:/bin/"
     msg "  docker cp ${TOOLS_INSTALL_DIR}/bin/patch CONTAINER:/bin/"
@@ -414,7 +492,8 @@ Usage: $0 [OPTIONS] COMMAND
 Build static tools for OpenHarmony using cross-compiler.
 
 Commands:
-  all       Build all tools (make, bash, patch)
+  all       Build all tools (gawk, make, bash, patch)
+  gawk      Build GNU Awk only
   make      Build GNU Make only
   bash      Build Bash only
   patch     Build GNU Patch only
@@ -467,7 +546,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        all|make|bash|patch|clean)
+        all|gawk|make|bash|patch|clean)
             COMMAND="$1"
             shift
             ;;
@@ -489,6 +568,9 @@ check_cross_compiler
 case "$COMMAND" in
     all)
         build_all
+        ;;
+    gawk)
+        build_gawk
         ;;
     make)
         build_make

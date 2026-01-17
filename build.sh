@@ -928,30 +928,44 @@ configure_gcc() {
     local zlib_configure="--with-system-zlib"
     
     if [ "${CBUILD}" != "${CHOST}" ] || [ "${CHOST}" != "${CTARGET}" ]; then
+        # Cross-compilation or Canadian Cross - disable bootstrap
         cross_configure+=("--disable-bootstrap")
+    elif is_native_ohos_build; then
+        # Native OHOS build (Stage 3) - enable bootstrap to verify compiler correctness
+        # Requires patched basic_string.h with iterator overloads for misc-inst.cc
+        cross_configure+=("--enable-bootstrap")
     fi
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
         cross_configure+=("--with-sysroot=${SYSROOT}")
     fi
     
-    # For Canadian Cross builds, use bundled zlib since OHOS sysroot may not have it
+    # For Canadian Cross builds or native OHOS builds, use bundled zlib
+    # since OHOS sysroot may not have it
     # Also enable host PIE since OHOS defaults to PIE
     # Use --with-build-time-tools to specify stage 1 tools for running on build machine
     local host_pie_configure=""
     local build_time_tools=""
     local isl_configure=""
     local static_libs_configure=""
-    if is_canadian_cross; then
+    if is_canadian_cross || is_native_ohos_build; then
+        # Use bundled zlib since OHOS sysroot may not have it
         zlib_configure=""
+        # Enable host PIE since OHOS defaults to PIE
         host_pie_configure="--enable-host-pie"
-        build_time_tools="--with-build-time-tools=${STAGE1_PREFIX}/bin"
         # Disable ISL version check - tests won't run in cross environment anyway
         isl_configure="--disable-isl-version-check"
         # Disable static libstdc++/libgcc linking for build tools (ISL tests, etc.)
         # This avoids link failures on aarch64 where static libgcc lacks __eqtf2/__gttf2
         # (128-bit float comparison functions needed by static libstdc++)
         static_libs_configure="--with-static-standard-libraries=no"
-        msg "Canadian Cross: Using bundled zlib, enabling host PIE, and using stage 1 build-time tools"
+        
+        if is_canadian_cross; then
+            # Canadian Cross needs build-time tools from stage 1 for running on build machine
+            build_time_tools="--with-build-time-tools=${STAGE1_PREFIX}/bin"
+            msg "Canadian Cross: Using bundled zlib, enabling host PIE, and using stage 1 build-time tools"
+        else
+            msg "Native OHOS (Stage 3): Using bundled zlib and enabling host PIE"
+        fi
     fi
 
     # Run configure in a subshell to avoid polluting the parent shell with
