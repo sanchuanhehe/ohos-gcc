@@ -510,11 +510,17 @@ jobs:
             build-binutils/config.log
           retention-days: 7
 
+      - name: Package stage 2 for bootstrap
+        run: |
+          echo "=== Creating tar archive for Stage 3 ==="
+          tar -cf stage2-${{ matrix.target }}.tar -C install-stage2 .
+          ls -lh stage2-${{ matrix.target }}.tar
+
       - name: Upload stage 2 install for Stage 3 bootstrap
         uses: actions/upload-artifact@v4
         with:
           name: stage2-${{ matrix.target }}
-          path: install-stage2/
+          path: stage2-${{ matrix.target }}.tar
           retention-days: 1
 
   # Build tools (gawk, make, bash, patch) needed for Stage 3
@@ -573,11 +579,17 @@ jobs:
           echo "=== Built tools ==="
           ls -lh install-tools/bin/
 
+      - name: Package tools for Stage 3
+        run: |
+          echo "=== Creating tar archive for Stage 3 ==="
+          tar -cf ohos-tools-${{ matrix.target }}.tar -C install-tools .
+          ls -lh ohos-tools-${{ matrix.target }}.tar
+
       - name: Upload tools artifact
         uses: actions/upload-artifact@v4
         with:
           name: ohos-tools-${{ matrix.target }}
-          path: install-tools/
+          path: ohos-tools-${{ matrix.target }}.tar
           retention-days: 1
 
   # Stage 3: Bootstrap build (runs inside OHOS container)
@@ -593,11 +605,16 @@ jobs:
       matrix:
         target:
           - x86_64-linux-ohos
+          - aarch64-linux-ohos
         include:
           - target: x86_64-linux-ohos
             runner: ubuntu-24.04
             arch: x86_64
-            container_image: ghcr.io/sanchuanhehe/openharmony:latest
+            container_image: ghcr.io/sanchuanhehe/openharmony-x86_64:latest
+          - target: aarch64-linux-ohos
+            runner: ubuntu-24.04-arm
+            arch: aarch64
+            container_image: ghcr.io/sanchuanhehe/openharmony-aarch64:latest
 
     steps:
       - name: Checkout repository
@@ -620,13 +637,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: stage2-${{ matrix.target }}
-          path: stage2-install/
 
       - name: Download OHOS tools
         uses: actions/download-artifact@v4
         with:
           name: ohos-tools-${{ matrix.target }}
-          path: ohos-tools/
+
+      - name: Verify downloaded artifacts
+        run: |
+          echo "=== Downloaded tar archives ==="
+          ls -lh *.tar
+          file *.tar
 
       - name: Pull OHOS container image
         run: |
@@ -656,10 +677,11 @@ jobs:
       - name: Build Stage 3 (Bootstrap) in OHOS container
         run: |
           # Run the bootstrap build inside OHOS container
+          # Tar archives are already downloaded from artifacts
           docker run --rm \
             -v "${PWD}:/ohos-gcc" \
-            -v "${PWD}/stage2-install:/stage2-install:ro" \
-            -v "${PWD}/ohos-tools:/ohos-tools:ro" \
+            -v "${PWD}/stage2-${{ matrix.target }}.tar:/stage2.tar:ro" \
+            -v "${PWD}/ohos-tools-${{ matrix.target }}.tar:/ohos-tools.tar:ro" \
             -w /ohos-gcc \
             ${{ matrix.container_image }} \
             /bin/sh -c '
@@ -673,22 +695,38 @@ jobs:
               
               # Verify basic commands
               echo "Verifying basic commands..."
-              which sh ls cp mv rm mkdir cat echo grep sed awk
+              which sh ls cp mv rm mkdir cat echo grep sed awk tar
               
-              # Step 2: Install Stage 2 compiler to / (root)
-              # This places bin at /bin, lib at /lib, etc.
-              echo "--- Step 2: Installing Stage 2 compiler to root ---"
-              cp -a /stage2-install/* /
+              # Step 2: Show current filesystem layout
+              echo "--- Step 2: Current filesystem layout ---"
+              ls -la / | head -20
+              echo "Checking symlinks:"
+              for dir in lib lib64 bin sbin; do
+                if [ -L "/$dir" ]; then
+                  echo "  /$dir -> $(readlink /$dir)"
+                elif [ -d "/$dir" ]; then
+                  echo "  /$dir (directory)"
+                else
+                  echo "  /$dir (not exist)"
+                fi
+              done
               
-              # Verify Stage 2 compiler (should be in /bin now)
+              # Step 3: Install Stage 2 compiler to / using tar
+              # tar automatically follows symlinks when extracting
+              echo "--- Step 3: Installing Stage 2 compiler to / ---"
+              cd /
+              tar -xf /stage2.tar
+              echo "Stage 2 compiler installed."
+              
+              # Verify Stage 2 compiler
               echo "GCC version:"
               gcc --version
               echo "G++ version:"
               g++ --version
               
-              # Step 3: Install OHOS tools (gawk, make, bash, patch)
-              echo "--- Step 3: Installing OHOS tools ---"
-              cp -a /ohos-tools/bin/* /bin/ 2>/dev/null || true
+              # Step 4: Install OHOS tools (gawk, make, bash, patch)
+              echo "--- Step 4: Installing OHOS tools ---"
+              tar -xf /ohos-tools.tar
               chmod +x /bin/gawk /bin/make /bin/bash /bin/patch 2>/dev/null || true
               
               # Verify tools
@@ -699,16 +737,19 @@ jobs:
               echo "bash version:"
               bash --version | head -1 || echo "bash not available"
               
-              # Step 4: Set up environment
-              echo "--- Step 4: Setting up build environment ---"
+              # Step 5: Set up environment
+              echo "--- Step 5: Setting up build environment ---"
               export CC=gcc
               export CXX=g++
               export SHELL=/bin/bash
+              export PATH="/bin:/usr/bin:$PATH"
+              export LD_LIBRARY_PATH="/lib:/lib64:/usr/lib:/usr/lib64:$LD_LIBRARY_PATH"
               
-              # Step 5: Run bootstrap build
-              # --stage2=/ tells build.sh the stage 2 compiler is at root
-              # --prefix=/ means install output to root as well
-              echo "--- Step 5: Running bootstrap build ---"
+              # Return to working directory
+              cd /ohos-gcc
+              
+              # Step 6: Run bootstrap build
+              echo "--- Step 6: Running bootstrap build ---"
               ./build.sh \
                 --build=${{ matrix.target }} \
                 --host=${{ matrix.target }} \
