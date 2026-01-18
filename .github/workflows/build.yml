@@ -439,19 +439,21 @@ jobs:
           echo "  CHOST: ${{ matrix.target }}"
           echo "  CTARGET: ${{ matrix.target }}"
           echo "  Stage 1: ./install"
-          echo "  Prefix: ./install-stage2"
+          echo "  Prefix: /usr (will be installed to ./install-stage2 with DESTDIR)"
           echo "  Jobs: $(nproc)"
           echo ""
           
           # Ensure clean build directory
           rm -rf build-ohos build-binutils
           
-          # Run build with verbose output on failure
+          # Build with --prefix=/usr so paths are correct when installed in OHOS container
+          # The actual files go to ./install-stage2 via DESTDIR mechanism in build.sh
           if ! ./build.sh \
             --host=${{ matrix.target }} \
             --target=${{ matrix.target }} \
             --stage1=./install \
-            --prefix=./install-stage2 \
+            --prefix=/usr \
+            --destdir=./install-stage2 \
             --jobs=$(nproc) \
             all 2>&1 | tee build-stage2.log; then
               echo "=== BUILD FAILED - Last 200 lines of log ==="
@@ -467,11 +469,14 @@ jobs:
         run: |
           echo "=== Verifying native OHOS compiler ==="
           
+          # With --prefix=/usr --destdir=./install-stage2, files are in ./install-stage2/usr/
+          STAGE2_ROOT="./install-stage2/usr"
+          
           # Check that install directory exists and has content
-          if [ ! -d "./install-stage2/bin" ]; then
-            echo "ERROR: install-stage2/bin directory not found!"
+          if [ ! -d "${STAGE2_ROOT}/bin" ]; then
+            echo "ERROR: ${STAGE2_ROOT}/bin directory not found!"
             echo "Directory listing:"
-            ls -la ./install-stage2/ 2>/dev/null || echo "install-stage2 does not exist"
+            ls -laR ./install-stage2/ 2>/dev/null | head -50 || echo "install-stage2 does not exist"
             exit 1
           fi
           
@@ -479,8 +484,8 @@ jobs:
           echo "--- Critical binary check ---"
           critical_bins=("gcc" "g++" "cpp")
           for bin in "${critical_bins[@]}"; do
-            if [ -f "./install-stage2/bin/$bin" ]; then
-              echo "  ✓ $bin: $(stat -c%s ./install-stage2/bin/$bin) bytes"
+            if [ -f "${STAGE2_ROOT}/bin/$bin" ]; then
+              echo "  ✓ $bin: $(stat -c%s ${STAGE2_ROOT}/bin/$bin) bytes"
             else
               echo "  ✗ MISSING: $bin"
             fi
@@ -488,24 +493,24 @@ jobs:
           
           # Check that binaries are OHOS format
           echo "--- Binary format check ---"
-          file ./install-stage2/bin/gcc
-          file ./install-stage2/bin/g++
+          file ${STAGE2_ROOT}/bin/gcc
+          file ${STAGE2_ROOT}/bin/g++
           
           # Verify it's an ELF for the right architecture
           echo "--- Architecture verification ---"
-          readelf -h ./install-stage2/bin/gcc | grep -E 'Class|Machine|OS/ABI' || true
+          readelf -h ${STAGE2_ROOT}/bin/gcc | grep -E 'Class|Machine|OS/ABI' || true
           
           # Verify interpreter is musl
           echo "--- Interpreter check ---"
-          readelf -p .interp ./install-stage2/bin/gcc || true
+          readelf -p .interp ${STAGE2_ROOT}/bin/gcc || true
           
           # Check dynamic dependencies
           echo "--- Dynamic dependencies ---"
-          readelf -d ./install-stage2/bin/gcc | grep NEEDED || true
+          readelf -d ${STAGE2_ROOT}/bin/gcc | grep NEEDED || true
           
           # List installed files
           echo "--- Installed binaries ---"
-          ls -la ./install-stage2/bin/
+          ls -la ${STAGE2_ROOT}/bin/
           
           # Count total installed files
           echo "--- Installation statistics ---"
@@ -785,19 +790,43 @@ jobs:
               echo "bash version:"
               bash --version | head -1 || echo "bash not available"
               
-              # Step 5: Set up environment
-              echo "--- Step 5: Setting up build environment ---"
-              export CC=gcc
-              export CXX=g++
-              export SHELL=/bin/bash
-              export PATH="/bin:/usr/bin:$PATH"
-              export LD_LIBRARY_PATH="/lib:/lib64:/usr/lib:/usr/lib64:$LD_LIBRARY_PATH"
-              
               # Return to working directory
               cd /ohos-gcc
               
-              # Step 6: Run bootstrap build
-              echo "--- Step 6: Running bootstrap build ---"
+              # Step 6: Test compiler before build
+              echo "--- Step 6: Testing Stage 2 compiler ---"
+              echo "int main() { return 0; }" > /tmp/test.c
+              echo "Compiling test program with verbose output..."
+              if /bin/gcc -v /tmp/test.c -o /tmp/test 2>&1; then
+                echo "✓ Compiler works!"
+                file /tmp/test
+                /tmp/test && echo "✓ Test program runs!"
+              else
+                echo "✗ Compiler failed to create executable"
+                echo ""
+                echo "--- Trying to identify the problem ---"
+                echo "1. Check assembler:"
+                /bin/gcc -c /tmp/test.c -o /tmp/test.o -v 2>&1 || true
+                echo ""
+                echo "2. Check object file:"
+                file /tmp/test.o 2>/dev/null || echo "No object file created"
+                echo ""
+                echo "3. Check linker directly:"
+                /bin/ld --version 2>&1 || true
+                echo ""
+                echo "4. Check libc.so exists:"
+                ls -la /lib/libc.so* /usr/lib/libc.so* 2>/dev/null || echo "No libc.so found"
+                echo ""
+                echo "5. Check ld-musl linker:"
+                ls -la /lib/ld-musl* 2>/dev/null || echo "No ld-musl found"
+                echo ""
+                echo "6. Manual link test:"
+                /bin/ld -o /tmp/test /usr/lib/crt1.o /usr/lib/crti.o /tmp/test.o -lc /usr/lib/crtn.o --dynamic-linker /lib/ld-musl-x86_64.so.1 2>&1 || true
+                exit 1
+              fi
+              
+              # Step 7: Run bootstrap build
+              echo "--- Step 7: Running bootstrap build ---"
               if ! ./build.sh \
                 --build=${{ matrix.target }} \
                 --host=${{ matrix.target }} \
@@ -815,12 +844,18 @@ jobs:
                 ls -la /usr/lib/crt*.o 2>/dev/null || echo "No crt*.o in /usr/lib/"
                 ls -la /lib/crt*.o 2>/dev/null || echo "No crt*.o in /lib/"
                 echo ""
-                echo "--- Debugging: config.log (if exists) ---"
+                echo "--- Debugging: Check libgcc ---"
+                ls -la /lib/gcc/*/15.2.0/libgcc* 2>/dev/null || echo "No libgcc in /lib/gcc/"
+                ls -la /usr/lib/gcc/*/15.2.0/libgcc* 2>/dev/null || echo "No libgcc in /usr/lib/gcc/"
+                echo ""
+                echo "--- Debugging: config.log compile test ---"
                 if [ -f "build-binutils/config.log" ]; then
-                  tail -200 build-binutils/config.log
+                  echo "=== build-binutils/config.log ==="
+                  grep -A 50 "configure:.*checking whether the C compiler works" build-binutils/config.log || tail -300 build-binutils/config.log
                 fi
                 if [ -f "build-ohos/config.log" ]; then
-                  tail -200 build-ohos/config.log
+                  echo "=== build-ohos/config.log ==="
+                  grep -A 50 "configure:.*checking whether the C compiler works" build-ohos/config.log || tail -300 build-ohos/config.log
                 fi
                 echo ""
                 echo "--- Last 100 lines of build log ---"

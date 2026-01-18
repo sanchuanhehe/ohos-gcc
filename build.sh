@@ -28,6 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="${SCRIPT_DIR}/gcc-${GCC_VERSION}"
 BUILD_DIR="${SCRIPT_DIR}/build-ohos"
 INSTALL_PREFIX="${INSTALL_PREFIX:-${SCRIPT_DIR}/install}"
+DESTDIR="${DESTDIR:-}"
 SYSROOT="${SYSROOT:-}"
 
 # Relocatable sysroot option (for distributable cross-compilers)
@@ -1201,6 +1202,7 @@ Options:
   --host=HOST               Set host triplet (default: auto-detected)
   --build=BUILD             Set build triplet (default: auto-detected)
   --prefix=PREFIX           Set installation prefix (default: ./install)
+  --destdir=DIR             Install to DIR/PREFIX (for staged installs)
   --sysroot=SYSROOT         Set sysroot path for cross-compilation
                             (default: ndk/sysroot/CTARGET)
   --relocatable-sysroot     Use relative sysroot path for distributable
@@ -1216,6 +1218,7 @@ Environment Variables:
   CHOST                     Host triplet
   CBUILD                    Build triplet
   INSTALL_PREFIX            Installation prefix
+  DESTDIR                   Destination directory for staged installs
   STAGE1_PREFIX             Stage 1 cross-compiler prefix (for stage 2)
   STAGE2_PREFIX             Stage 2 native compiler prefix (for stage 3)
   BINUTILS_VERSION          Binutils version (default: ${BINUTILS_VERSION})
@@ -1279,6 +1282,9 @@ while [ $# -gt 0 ]; do
         --prefix=*)
             INSTALL_PREFIX="${1#*=}"
             ;;
+        --destdir=*)
+            DESTDIR="${1#*=}"
+            ;;
         --sysroot=*)
             SYSROOT="${1#*=}"
             ;;
@@ -1312,6 +1318,11 @@ done
 
 # Paths that may not exist yet (use normalize_path without must_exist)
 INSTALL_PREFIX=$(normalize_path "${INSTALL_PREFIX}")
+
+# Normalize DESTDIR if provided
+if [ -n "${DESTDIR}" ]; then
+    DESTDIR=$(normalize_path "${DESTDIR}")
+fi
 
 # BINUTILS_INSTALL_PREFIX inherits from INSTALL_PREFIX if not set
 BINUTILS_INSTALL_PREFIX="${BINUTILS_INSTALL_PREFIX:-${INSTALL_PREFIX}}"
