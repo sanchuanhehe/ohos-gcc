@@ -28,7 +28,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SOURCE_DIR="${SCRIPT_DIR}/gcc-${GCC_VERSION}"
 BUILD_DIR="${SCRIPT_DIR}/build-ohos"
 INSTALL_PREFIX="${INSTALL_PREFIX:-${SCRIPT_DIR}/install}"
+DESTDIR="${DESTDIR:-}"
 SYSROOT="${SYSROOT:-}"
+
+# Relocatable sysroot option (for distributable cross-compilers)
+# When enabled, Stage 1 cross-compiler uses a relative sysroot path
+# instead of absolute path, making the toolchain relocatable.
+RELOCATABLE_SYSROOT="${RELOCATABLE_SYSROOT:-no}"
 
 # Binutils configuration
 BINUTILS_VERSION="${BINUTILS_VERSION:-2.43}"
@@ -619,11 +625,22 @@ build_binutils() {
 
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    #   If --relocatable-sysroot is set, use a subdirectory of exec_prefix so GCC
+    #   automatically makes the sysroot path relocatable when the installation moves.
+    #   Per GCC docs: "If the specified directory is a subdirectory of ${exec_prefix},
+    #   then it will be found relative to the GCC binaries if the installation tree is moved."
     # - Stage 2 (Canadian Cross): use "/" as sysroot so binutils uses correct paths
     # - Stage 3 (native OHOS): no sysroot needed, uses system paths directly
     if [ -n "${SYSROOT}" ] && ! is_native_ohos_build && ! is_canadian_cross; then
-        # Stage 1: Cross-compiler needs explicit sysroot
-        configure_args+=("--with-sysroot=${SYSROOT}")
+        # Stage 1: Cross-compiler needs sysroot
+        if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
+            # Relocatable: use absolute path under INSTALL_PREFIX
+            # GCC automatically makes sysroot relocatable when it's under exec_prefix
+            configure_args+=("--with-sysroot=${INSTALL_PREFIX}/${CTARGET}/sysroot")
+        else
+            # Absolute: use explicit sysroot path (for CI builds)
+            configure_args+=("--with-sysroot=${SYSROOT}")
+        fi
     elif is_canadian_cross; then
         # Stage 2: Canadian Cross builds native OHOS binutils with sysroot=/
         configure_args+=("--with-sysroot=/")
@@ -948,12 +965,25 @@ configure_gcc() {
     
     # Configure sysroot based on build type:
     # - Stage 1 (cross-compiler): use NDK sysroot for target libraries
+    #   If --relocatable-sysroot is set, use a subdirectory of exec_prefix so GCC
+    #   automatically makes the sysroot path relocatable when the installation moves.
+    #   Per GCC docs: "If the specified directory is a subdirectory of ${exec_prefix},
+    #   then it will be found relative to the GCC binaries if the installation tree is moved."
     # - Stage 2 (Canadian Cross): use "/" as sysroot so the compiler looks for
     #   crt*.o in /usr/lib/ when running natively on OHOS
     # - Stage 3 (native OHOS): inherits sysroot from Stage 2 compiler
     if [ "${CHOST}" != "${CTARGET}" ] && [ -n "${SYSROOT}" ]; then
-        # Stage 1: Cross-compiler needs explicit sysroot for target libraries
-        cross_configure+=("--with-sysroot=${SYSROOT}")
+        # Stage 1: Cross-compiler needs sysroot for target libraries
+        if [ "${RELOCATABLE_SYSROOT}" = "yes" ]; then
+            # Relocatable: use absolute path under INSTALL_PREFIX for runtime
+            # GCC automatically makes sysroot relocatable when it's under exec_prefix
+            # --with-build-sysroot tells GCC where to find headers/libs during build
+            cross_configure+=("--with-sysroot=${INSTALL_PREFIX}/${CTARGET}/sysroot")
+            cross_configure+=("--with-build-sysroot=${SYSROOT}")
+        else
+            # Absolute: use explicit sysroot path (for CI builds)
+            cross_configure+=("--with-sysroot=${SYSROOT}")
+        fi
     elif is_canadian_cross; then
         # Stage 2: Canadian Cross builds a native OHOS compiler.
         # Configure with sysroot=/ so the compiler will look for crt*.o
@@ -1172,8 +1202,11 @@ Options:
   --host=HOST               Set host triplet (default: auto-detected)
   --build=BUILD             Set build triplet (default: auto-detected)
   --prefix=PREFIX           Set installation prefix (default: ./install)
+  --destdir=DIR             Install to DIR/PREFIX (for staged installs)
   --sysroot=SYSROOT         Set sysroot path for cross-compilation
                             (default: ndk/sysroot/CTARGET)
+  --relocatable-sysroot     Use relative sysroot path for distributable
+                            cross-compilers (sysroot at <prefix>/<target>/sysroot)
   --stage1=PATH             Stage 1 cross-compiler prefix (for stage 2 builds)
   --stage2=PATH             Stage 2 native compiler prefix (for stage 3 builds)
   --jobs=N                  Number of parallel jobs (default: $(nproc))
@@ -1185,6 +1218,7 @@ Environment Variables:
   CHOST                     Host triplet
   CBUILD                    Build triplet
   INSTALL_PREFIX            Installation prefix
+  DESTDIR                   Destination directory for staged installs
   STAGE1_PREFIX             Stage 1 cross-compiler prefix (for stage 2)
   STAGE2_PREFIX             Stage 2 native compiler prefix (for stage 3)
   BINUTILS_VERSION          Binutils version (default: ${BINUTILS_VERSION})
@@ -1248,8 +1282,14 @@ while [ $# -gt 0 ]; do
         --prefix=*)
             INSTALL_PREFIX="${1#*=}"
             ;;
+        --destdir=*)
+            DESTDIR="${1#*=}"
+            ;;
         --sysroot=*)
             SYSROOT="${1#*=}"
+            ;;
+        --relocatable-sysroot)
+            RELOCATABLE_SYSROOT="yes"
             ;;
         --stage1=*)
             STAGE1_PREFIX="${1#*=}"
@@ -1278,6 +1318,11 @@ done
 
 # Paths that may not exist yet (use normalize_path without must_exist)
 INSTALL_PREFIX=$(normalize_path "${INSTALL_PREFIX}")
+
+# Normalize DESTDIR if provided
+if [ -n "${DESTDIR}" ]; then
+    DESTDIR=$(normalize_path "${DESTDIR}")
+fi
 
 # BINUTILS_INSTALL_PREFIX inherits from INSTALL_PREFIX if not set
 BINUTILS_INSTALL_PREFIX="${BINUTILS_INSTALL_PREFIX:-${INSTALL_PREFIX}}"
